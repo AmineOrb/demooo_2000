@@ -14,20 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Video, Mail, AlertCircle } from "lucide-react";
 
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
-
-import { auth } from "@/lib/firebase";
+import { authService } from "@/lib/authService";
 
 export default function Auth() {
   const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [firebaseError, setFirebaseError] = useState("");
+  const [authError, setAuthError] = useState("");
 
   const [signUpData, setSignUpData] = useState({
     name: "",
@@ -46,18 +39,21 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setFirebaseError("");
+    setAuthError("");
 
     try {
-      await createUserWithEmailAndPassword(
-        auth,
+      await authService.signUp(
         signUpData.email,
-        signUpData.password
+        signUpData.password,
+        signUpData.name
       );
 
-      navigate("/dashboard");
+      // Supabase sends verification email automatically
+      setAuthError(
+        "Account created! Please check your email to verify your account."
+      );
     } catch (error: any) {
-      setFirebaseError(error.message);
+      setAuthError(error.message || "Failed to create account.");
     } finally {
       setIsLoading(false);
     }
@@ -69,18 +65,26 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setFirebaseError("");
+    setAuthError("");
 
     try {
-      await signInWithEmailAndPassword(
-        auth,
+      const user = await authService.signIn(
         signInData.email,
         signInData.password
       );
 
+      if (!user.emailVerified) {
+        setAuthError("Please verify your email before logging in.");
+        return;
+      }
+
       navigate("/dashboard");
     } catch (error: any) {
-      setFirebaseError(error.message);
+      if (error.message === "EMAIL_NOT_VERIFIED") {
+        setAuthError("Please verify your email before logging in.");
+      } else {
+        setAuthError(error.message || "Failed to sign in.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,22 +95,20 @@ export default function Auth() {
   // ----------------------------
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    setFirebaseError("");
+    setAuthError("");
 
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-
-      navigate("/dashboard");
+      await authService.signInWithGoogle();
+      // Supabase redirects to /dashboard
     } catch (error: any) {
-      setFirebaseError(error.message);
+      setAuthError(error.message || "Google sign-in failed.");
     } finally {
       setIsLoading(false);
     }
   };
 
   // ----------------------------
-  //   UI STARTS HERE
+  //   UI
   // ----------------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -132,11 +134,11 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
-            {firebaseError && (
+            {authError && (
               <Alert className="mb-4 border-red-500 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
                 <AlertDescription className="text-red-800">
-                  {firebaseError}
+                  {authError}
                 </AlertDescription>
               </Alert>
             )}
@@ -147,7 +149,7 @@ export default function Auth() {
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
-              {/* SIGN IN FORM */}
+              {/* SIGN IN */}
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
@@ -185,7 +187,7 @@ export default function Auth() {
                 </form>
               </TabsContent>
 
-              {/* SIGN UP FORM */}
+              {/* SIGN UP */}
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
@@ -233,7 +235,7 @@ export default function Auth() {
                   <Alert className="bg-blue-50 border-blue-200">
                     <Mail className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-sm text-blue-800">
-                      You will be logged in immediately after signing up.
+                      You must verify your email before logging in.
                     </AlertDescription>
                   </Alert>
 
@@ -256,7 +258,7 @@ export default function Auth() {
               </div>
             </div>
 
-            {/* GOOGLE BUTTON */}
+            {/* GOOGLE LOGIN */}
             <Button
               variant="outline"
               className="w-full"

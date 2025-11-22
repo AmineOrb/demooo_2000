@@ -1,25 +1,96 @@
-import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import AvatarViewer from '@/components/AvatarViewer';
-import { interviewService, getInterviewQuestions, getAvatarDuration } from '@/lib/api';
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import AvatarViewer from "@/components/AvatarViewer";
 
-import { Video, VideoOff, Mic, MicOff, Clock, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { interviewService } from "@/lib/interviewService";
+import { Video, VideoOff, Mic, MicOff, Clock, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+type AvatarType = "easy" | "medium" | "hard";
+type LanguageType = "en" | "ar";
+
+// -----------------------------------------------------
+//     LOCAL QUESTION GENERATOR
+// -----------------------------------------------------
+const getInterviewQuestions = (avatarType: AvatarType, language: LanguageType): string[] => {
+  const questions = {
+    easy: {
+      en: [
+        "Tell me about yourself.",
+        "Why are you interested in this position?",
+        "What are your greatest strengths?",
+        "Where do you see yourself in 5 years?",
+      ],
+      ar: [
+        "أخبرني عن نفسك.",
+        "لماذا أنت مهتم بهذا المنصب؟",
+        "ما هي أعظم نقاط قوتك؟",
+        "أين ترى نفسك بعد 5 سنوات؟",
+      ],
+    },
+    medium: {
+      en: [
+        "Describe a challenging project you worked on.",
+        "How do you handle conflict in a team?",
+        "What is your approach to problem-solving?",
+        "Tell me about a time you failed and what you learned.",
+        "How do you prioritize tasks when everything is urgent?",
+      ],
+      ar: [
+        "صف مشروعًا صعبًا عملت عليه.",
+        "كيف تتعامل مع الصراع في الفريق؟",
+        "ما هو نهجك في حل المشكلات؟",
+        "أخبرني عن وقت فشلت فيه وماذا تعلمت.",
+        "كيف تحدد أولويات المهام عندما يكون كل شيء عاجلاً؟",
+      ],
+    },
+    hard: {
+      en: [
+        "Walk me through a complex technical decision you made.",
+        "How would you design a system to handle millions of users?",
+        "Describe a situation where you had to influence without authority.",
+        "What would you do if you disagreed with your manager on a critical decision?",
+        "How do you stay current with industry trends and technologies?",
+        "Tell me about a time when you had to make a decision with incomplete information.",
+      ],
+      ar: [
+        "اشرح لي قرارًا تقنيًا معقدًا اتخذته.",
+        "كيف ستصمم نظامًا للتعامل مع ملايين المستخدمين؟",
+        "صف موقفًا كان عليك فيه التأثير بدون سلطة.",
+        "ماذا ستفعل إذا اختلفت مع مديرك في قرار حاسم؟",
+        "كيف تبقى على اطلاع دائم باتجاهات الصناعة والتقنيات؟",
+        "أخبرني عن وقت كان عليك فيه اتخاذ قرار بمعلومات غير كاملة.",
+      ],
+    },
+  };
+
+  return questions[avatarType][language];
+};
+
+// -----------------------------------------------------
+//     LOCAL DURATION MAP
+// -----------------------------------------------------
+const getAvatarDuration = (avatarType: AvatarType): number => {
+  const durations: Record<AvatarType, number> = {
+    easy: 5 * 60,
+    medium: 10 * 60,
+    hard: 15 * 60,
+  };
+  return durations[avatarType];
+};
 
 export default function InterviewRoom() {
-  // Route uses `roomId` as the param key (see App.tsx). Use the correct param name here.
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
 
-  // Look up interview directly (no setter required here)
-  const interview = interviewService.getInterviews().find((i) => i.id === roomId);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [interview, setInterview] = useState<any | null>(null);
 
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
@@ -28,36 +99,55 @@ export default function InterviewRoom() {
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
   const [questions, setQuestions] = useState<string[]>([]);
 
+  // -----------------------------------------------------
+  // LOAD INTERVIEW FROM SUPABASE BY ID
+  // -----------------------------------------------------
   useEffect(() => {
-    if (!interview) {
-      navigate('/dashboard');
-      return;
-    }
+    if (!roomId) return;
 
-    // Initialize interview
-    const interviewQuestions = getInterviewQuestions(interview.avatarType, interview.language);
-    setQuestions(interviewQuestions);
-    setTimeRemaining(getAvatarDuration(interview.avatarType));
+    (async () => {
+      const found = await interviewService.getInterviewById(roomId);
 
-    // Start camera
+      if (!found) {
+        toast({ title: "Interview not found", variant: "destructive" });
+        navigate("/dashboard");
+        return;
+      }
+
+      setInterview(found);
+    })();
+  }, [roomId, navigate, toast]);
+
+  // -----------------------------------------------------
+  // INIT INTERVIEW AFTER LOADING
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!interview) return;
+
+    const qs = getInterviewQuestions(interview.avatarType, interview.language);
+    setQuestions(qs);
+
+    const duration = getAvatarDuration(interview.avatarType);
+    setTimeRemaining(duration);
+
     startCamera();
 
-    // Start interview after 2 seconds
-    setTimeout(() => {
-      startQuestion();
-    }, 2000);
+    setTimeout(() => startQuestion(), 1500);
 
     return () => {
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [interview]);
+  }, [interview]); // eslint-disable-line
 
+  // -----------------------------------------------------
+  // COUNTDOWN TIMER
+  // -----------------------------------------------------
   useEffect(() => {
     if (timeRemaining <= 0) return;
 
-    const timer = setInterval(() => {
+    const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
           handleEndInterview();
@@ -67,7 +157,7 @@ export default function InterviewRoom() {
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => clearInterval(interval);
   }, [timeRemaining]);
 
   const startCamera = async () => {
@@ -76,31 +166,29 @@ export default function InterviewRoom() {
         video: true,
         audio: true,
       });
+
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (error) {
+    } catch {
       toast({
-        title: 'Camera access denied',
-        description: 'Please allow camera access to continue',
-        variant: 'destructive',
+        title: "Camera blocked",
+        description: "Please allow camera access.",
+        variant: "destructive",
       });
     }
   };
 
   const startQuestion = () => {
     setIsAvatarSpeaking(true);
-    // Simulate avatar speaking for 3-5 seconds
     const speakDuration = Math.random() * 2000 + 3000;
-    setTimeout(() => {
-      setIsAvatarSpeaking(false);
-    }, speakDuration);
+    setTimeout(() => setIsAvatarSpeaking(false), speakDuration);
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
       startQuestion();
     } else {
       handleEndInterview();
@@ -109,69 +197,65 @@ export default function InterviewRoom() {
 
   const toggleVideo = () => {
     if (stream) {
-      const videoTrack = stream.getVideoTracks()[0];
-      videoTrack.enabled = !videoTrack.enabled;
-      setIsVideoOn(!isVideoOn);
+      const track = stream.getVideoTracks()[0];
+      track.enabled = !track.enabled;
+      setIsVideoOn(track.enabled);
     }
   };
 
   const toggleAudio = () => {
     if (stream) {
-      const audioTrack = stream.getAudioTracks()[0];
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsAudioOn(!isAudioOn);
+      const track = stream.getAudioTracks()[0];
+      track.enabled = !track.enabled;
+      setIsAudioOn(track.enabled);
     }
   };
 
+  // -----------------------------------------------------
+  // FINISH INTERVIEW
+  // -----------------------------------------------------
   const handleEndInterview = async () => {
     if (!interview) return;
 
-    const totalDuration = getAvatarDuration(interview.avatarType);
-    const actualDuration = totalDuration - timeRemaining;
-
     try {
-      const report = await interviewService.completeInterview(interview.id, actualDuration);
+      const totalDuration = getAvatarDuration(interview.avatarType);
+      const actualDuration = totalDuration - timeRemaining;
 
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      await interviewService.completeInterview(interview.id, actualDuration);
 
       toast({
-        title: 'Interview Completed!',
-        description: 'Your performance report is ready',
+        title: "Interview Complete 🎉",
+        description: "Your AI performance report is ready.",
       });
 
-      // Show report in a toast (in real app, this would be emailed)
-      setTimeout(() => {
-        toast({
-          title: `Your Score: ${report.overallScore}%`,
-          description: `Communication: ${report.communication}% | Confidence: ${report.confidence}% | Technical: ${report.technical}%`,
-        });
-      }, 1000);
-
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (error) {
+      console.error(error);
       toast({
-        title: 'Error',
-        description: 'Failed to complete interview',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to complete interview.",
+        variant: "destructive",
       });
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
   if (!interview) return null;
 
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progress =
+    questions.length > 0
+      ? ((currentQuestionIndex + 1) / questions.length) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
+
+      {/* HEADER */}
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -181,38 +265,43 @@ export default function InterviewRoom() {
             <Badge className="bg-blue-600">{interview.avatarType}</Badge>
             <span className="text-sm text-gray-400">{interview.jobTitle}</span>
           </div>
+
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-blue-400" />
-              <span className="text-xl font-mono font-bold">{formatTime(timeRemaining)}</span>
+              <span className="text-xl font-mono font-bold">
+                {formatTime(timeRemaining)}
+              </span>
             </div>
+
             <Button variant="destructive" size="sm" onClick={handleEndInterview}>
               <X className="w-4 h-4 mr-2" />
-              End Interview
+              End
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* MAIN */}
       <div className="container mx-auto px-4 py-6">
+
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-400">
               Question {currentQuestionIndex + 1} of {questions.length}
             </span>
-            <span className="text-gray-400">{Math.round(progress)}% Complete</span>
+            <span className="text-gray-400">{Math.round(progress)}% Done</span>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Video Grid */}
+        {/* VIDEO GRID */}
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
-          {/* User Camera */}
+          {/* USER CAMERA */}
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-4">
-              <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+              <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -221,7 +310,7 @@ export default function InterviewRoom() {
                   className="w-full h-full object-cover"
                 />
                 {!isVideoOn && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <VideoOff className="w-16 h-16 text-gray-600" />
                   </div>
                 )}
@@ -232,17 +321,26 @@ export default function InterviewRoom() {
             </CardContent>
           </Card>
 
-          {/* Avatar */}
+          {/* AI AVATAR */}
           <Card className="bg-gray-800 border-gray-700">
             <CardContent className="p-4">
               <div className="relative aspect-video rounded-lg overflow-hidden">
-                <AvatarViewer avatarType={interview.avatarType} isActive={isAvatarSpeaking} />
+                <AvatarViewer
+                  avatarType={interview.avatarType}
+                  isActive={isAvatarSpeaking}
+                />
+
                 <div className="absolute bottom-4 left-4">
-                  <Badge className="bg-black/50 backdrop-blur">AI Interviewer</Badge>
+                  <Badge className="bg-black/50 backdrop-blur">
+                    AI Interviewer
+                  </Badge>
                 </div>
+
                 {isAvatarSpeaking && (
                   <div className="absolute top-4 right-4">
-                    <Badge className="bg-red-500 animate-pulse">Speaking...</Badge>
+                    <Badge className="bg-red-500 animate-pulse">
+                      Speaking…
+                    </Badge>
                   </div>
                 )}
               </div>
@@ -250,23 +348,29 @@ export default function InterviewRoom() {
           </Card>
         </div>
 
-        {/* Question Display */}
+        {/* QUESTION */}
         <Card className="bg-gradient-to-r from-blue-900 to-purple-900 border-blue-700">
           <CardContent className="p-8">
             <h3 className="text-sm text-blue-300 mb-2">Current Question:</h3>
-            <p className="text-2xl font-medium mb-6">{questions[currentQuestionIndex]}</p>
-            <div className="flex justify-between items-center">
+            <p className="text-2xl font-medium mb-6">
+              {questions[currentQuestionIndex]}
+            </p>
+
+            <div className="flex items-center justify-between">
               <p className="text-sm text-gray-300">
                 {isAvatarSpeaking
-                  ? 'The interviewer is asking a question...'
-                  : 'Your turn to answer. Take your time.'}
+                  ? "AI is asking..."
+                  : "Your turn to answer. Take your time."}
               </p>
+
               <Button
                 onClick={handleNextQuestion}
                 disabled={isAvatarSpeaking}
                 className="bg-white text-blue-900 hover:bg-blue-50"
               >
-                {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Interview'}
+                {currentQuestionIndex < questions.length - 1
+                  ? "Next Question"
+                  : "Finish Interview"}
               </Button>
             </div>
           </CardContent>
@@ -276,19 +380,28 @@ export default function InterviewRoom() {
         <div className="flex justify-center gap-4 mt-6">
           <Button
             size="lg"
-            variant={isVideoOn ? 'secondary' : 'destructive'}
+            variant={isVideoOn ? "secondary" : "destructive"}
             onClick={toggleVideo}
             className="w-16 h-16 rounded-full"
           >
-            {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+            {isVideoOn ? (
+              <Video className="w-6 h-6" />
+            ) : (
+              <VideoOff className="w-6 h-6" />
+            )}
           </Button>
+
           <Button
             size="lg"
-            variant={isAudioOn ? 'secondary' : 'destructive'}
+            variant={isAudioOn ? "secondary" : "destructive"}
             onClick={toggleAudio}
             className="w-16 h-16 rounded-full"
           >
-            {isAudioOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+            {isAudioOn ? (
+              <Mic className="w-6 h-6" />
+            ) : (
+              <MicOff className="w-6 h-6" />
+            )}
           </Button>
         </div>
       </div>

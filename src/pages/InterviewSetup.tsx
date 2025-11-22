@@ -1,28 +1,80 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { authService, interviewService } from '@/lib/api';
-import { Upload, Video, ArrowRight, User, Briefcase, Clock } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import { authService, type UserProfile } from "@/lib/authService";
+import { interviewService } from "@/lib/interviewService";
+
+import {
+  Upload,
+  Video,
+  ArrowRight,
+  User,
+  Briefcase,
+  Clock,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function InterviewSetup() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const user = authService.getCurrentUser();
+
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [checkingUser, setCheckingUser] = useState(true);
 
   const [formData, setFormData] = useState({
     cvFile: null as File | null,
-    jobTitle: '',
-    jobDescription: '',
-    avatarType: 'medium' as 'easy' | 'medium' | 'hard',
-    language: 'en' as 'en' | 'ar',
+    jobTitle: "",
+    jobDescription: "",
+    avatarType: "medium" as "easy" | "medium" | "hard",
+    language: "en" as "en" | "ar",
   });
+
+  // Load logged-in user from Supabase
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const u = await authService.getCurrentUser();
+        if (cancelled) return;
+
+        if (!u) {
+          navigate("/auth");
+          return;
+        }
+
+        setUser(u);
+      } catch {
+        navigate("/auth");
+      } finally {
+        if (!cancelled) setCheckingUser(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -32,26 +84,26 @@ export default function InterviewSetup() {
 
   const handleStartInterview = async () => {
     if (!user) {
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
 
     if (!formData.jobTitle || !formData.jobDescription) {
       toast({
-        title: 'Missing information',
-        description: 'Please fill in all required fields',
-        variant: 'destructive',
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
       });
       return;
     }
 
-    if (user.subscription === 'free' && user.interviewsRemaining <= 0) {
+    if (user.subscription === "free" && user.interviewsRemaining <= 0) {
       toast({
-        title: 'No interviews remaining',
-        description: 'Upgrade to Premium for unlimited interviews',
-        variant: 'destructive',
+        title: "No interviews remaining",
+        description: "Upgrade to Premium for unlimited interviews.",
+        variant: "destructive",
       });
-      navigate('/pricing');
+      navigate("/pricing");
       return;
     }
 
@@ -64,51 +116,50 @@ export default function InterviewSetup() {
       });
 
       toast({
-        title: 'Interview created',
-        description: 'Starting your interview session...',
+        title: "Interview Created",
+        description: "Starting your interview session...",
       });
 
-  navigate(`/room/${interview.id}`);
-    } catch (error) {
+      navigate(`/room/${interview.id}`);
+    } catch (err) {
+      console.error(err);
       toast({
-        title: 'Error',
-        description: 'Failed to create interview',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to create interview. Try again.",
+        variant: "destructive",
       });
     }
   };
 
   const avatarOptions = [
     {
-      type: 'easy' as const,
-      title: 'Easy Level',
-      description: 'Young Professional',
-      duration: '5 minutes',
-      color: 'border-green-300 hover:border-green-500',
-      icon: '👨‍💼',
+      type: "easy" as const,
+      title: "Easy Level",
+      description: "Young Professional",
+      duration: "5 minutes",
+      color: "border-green-300 hover:border-green-500",
+      icon: "👨‍💼",
     },
     {
-      type: 'medium' as const,
-      title: 'Medium Level',
-      description: 'Experienced Manager',
-      duration: '10 minutes',
-      color: 'border-blue-300 hover:border-blue-500',
-      icon: '👩‍💼',
+      type: "medium" as const,
+      title: "Medium Level",
+      description: "Experienced Manager",
+      duration: "10 minutes",
+      color: "border-blue-300 hover:border-blue-500",
+      icon: "👩‍💼",
     },
     {
-      type: 'hard' as const,
-      title: 'Hard Level',
-      description: 'Senior Executive',
-      duration: '15 minutes',
-      color: 'border-red-300 hover:border-red-500',
-      icon: '👨‍💼',
+      type: "hard" as const,
+      title: "Hard Level",
+      description: "Senior Executive",
+      duration: "15 minutes",
+      color: "border-red-300 hover:border-red-500",
+      icon: "👨‍💼",
     },
   ];
 
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
+  if (checkingUser) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -121,7 +172,7 @@ export default function InterviewSetup() {
               AI Interview Simulator
             </h1>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             ← Back to Dashboard
           </Button>
         </div>
@@ -141,7 +192,9 @@ export default function InterviewSetup() {
                 <Upload className="w-5 h-5" />
                 Upload Your CV (Optional)
               </CardTitle>
-              <CardDescription>Upload your resume to help tailor the interview questions</CardDescription>
+              <CardDescription>
+                Upload your resume to help tailor the interview questions
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
@@ -155,11 +208,17 @@ export default function InterviewSetup() {
                 <Label htmlFor="cv-upload" className="cursor-pointer">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   {formData.cvFile ? (
-                    <p className="text-sm font-medium text-blue-600">{formData.cvFile.name}</p>
+                    <p className="text-sm font-medium text-blue-600">
+                      {formData.cvFile.name}
+                    </p>
                   ) : (
                     <>
-                      <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
-                      <p className="text-xs text-gray-500">PDF, DOC, or DOCX (Max 10MB)</p>
+                      <p className="text-sm font-medium mb-1">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        PDF, DOC, or DOCX (Max 10MB)
+                      </p>
                     </>
                   )}
                 </Label>
@@ -174,7 +233,9 @@ export default function InterviewSetup() {
                 <Briefcase className="w-5 h-5" />
                 Job Details
               </CardTitle>
-              <CardDescription>Tell us about the position you're interviewing for</CardDescription>
+              <CardDescription>
+                Tell us about the position you're interviewing for
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -183,7 +244,9 @@ export default function InterviewSetup() {
                   id="job-title"
                   placeholder="e.g., Senior Software Engineer"
                   value={formData.jobTitle}
-                  onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, jobTitle: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -194,7 +257,9 @@ export default function InterviewSetup() {
                   placeholder="Paste the job description or key requirements..."
                   rows={6}
                   value={formData.jobDescription}
-                  onChange={(e) => setFormData({ ...formData, jobDescription: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, jobDescription: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -208,19 +273,28 @@ export default function InterviewSetup() {
                 <User className="w-5 h-5" />
                 Choose Your Interviewer
               </CardTitle>
-              <CardDescription>Select the difficulty level and interviewer type</CardDescription>
+              <CardDescription>
+                Select the difficulty level and interviewer type
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <RadioGroup
                 value={formData.avatarType}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, avatarType: value as 'easy' | 'medium' | 'hard' })
+                  setFormData({
+                    ...formData,
+                    avatarType: value as "easy" | "medium" | "hard",
+                  })
                 }
                 className="grid md:grid-cols-3 gap-4"
               >
                 {avatarOptions.map((option) => (
                   <div key={option.type}>
-                    <RadioGroupItem value={option.type} id={option.type} className="peer sr-only" />
+                    <RadioGroupItem
+                      value={option.type}
+                      id={option.type}
+                      className="peer sr-only"
+                    />
                     <Label
                       htmlFor={option.type}
                       className={`flex flex-col items-center justify-between rounded-lg border-2 ${option.color} bg-white p-6 hover:bg-gray-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all`}
@@ -228,7 +302,9 @@ export default function InterviewSetup() {
                       <div className="text-5xl mb-3">{option.icon}</div>
                       <div className="text-center">
                         <p className="font-semibold mb-1">{option.title}</p>
-                        <p className="text-sm text-gray-600 mb-2">{option.description}</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {option.description}
+                        </p>
                         <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
                           <Clock className="w-3 h-3" />
                           {option.duration}
@@ -245,12 +321,16 @@ export default function InterviewSetup() {
           <Card>
             <CardHeader>
               <CardTitle>Interview Language</CardTitle>
-              <CardDescription>Choose your preferred language for the interview</CardDescription>
+              <CardDescription>
+                Choose your preferred language for the interview
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Select
                 value={formData.language}
-                onValueChange={(value) => setFormData({ ...formData, language: value as 'en' | 'ar' })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, language: value as "en" | "ar" })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />

@@ -1,71 +1,122 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { authService, interviewService } from '@/lib/api';
-import type { Interview, UserProfile } from '@/lib/api';
-import { Video, Plus, Clock, TrendingUp, LogOut, Crown, Calendar } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+
+import {
+  Video,
+  Plus,
+  Clock,
+  TrendingUp,
+  LogOut,
+  Crown,
+  Calendar,
+} from "lucide-react";
+
+import { useToast } from "@/hooks/use-toast";
+import { authService, type UserProfile } from "@/lib/authService";
+import { interviewService, type Interview } from "@/lib/interviewService";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [user, setUser] = useState<UserProfile | null>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Load current user + interviews (Supabase)
   useEffect(() => {
-    // fetch current user and then load interviews
     let cancelled = false;
+
     (async () => {
-      const u = await authService.getCurrentUser();
-      if (cancelled) return;
-      if (!u) {
-        navigate('/auth');
-        return;
+      setLoading(true);
+      try {
+        const profile = await authService.getCurrentUser();
+        if (cancelled) return;
+
+        setUser(profile);
+
+        const allInterviews = await interviewService.getInterviewsByUser(
+          profile.id
+        );
+        if (cancelled) return;
+
+        setInterviews(
+          allInterviews.sort(
+            (a, b) =>
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+        );
+      } catch (err: any) {
+        console.error(err);
+        if (!cancelled) {
+          toast({
+            title: "Not logged in",
+            description: "Please sign in again.",
+            variant: "destructive",
+          });
+          navigate("/auth");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setUser(u);
-      await loadInterviews(u.id);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
-
-  const loadInterviews = async (uid: string) => {
-    const allInterviews = await interviewService.getInterviewsByUser(uid);
-    setInterviews(allInterviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  };
+  }, [navigate, toast]);
 
   const handleSignOut = async () => {
-    await authService.signOut();
-    toast({
-      title: 'Signed out',
-      description: 'You have been signed out successfully',
-    });
-    navigate('/');
+    try {
+      await authService.signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully",
+      });
+      navigate("/");
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStartInterview = () => {
-  if (user?.subscription === 'free' && user.interviewsRemaining <= 0) {
+    const subscription = user?.subscription ?? "free";
+    const remaining = user?.interviewsRemaining ?? 0;
+
+    if (subscription === "free" && remaining <= 0) {
       toast({
-        title: 'No interviews remaining',
-        description: 'Upgrade to Premium for unlimited interviews',
-        variant: 'destructive',
+        title: "No interviews remaining",
+        description: "Upgrade to Premium for unlimited interviews",
+        variant: "destructive",
       });
-      navigate('/pricing');
+      navigate("/pricing");
       return;
     }
-  navigate('/setup');
+
+    navigate("/setup");
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -76,14 +127,26 @@ export default function Dashboard() {
 
   const getDifficultyColor = (type: string) => {
     const colors = {
-      easy: 'bg-green-100 text-green-700',
-      medium: 'bg-blue-100 text-blue-700',
-      hard: 'bg-red-100 text-red-700',
+      easy: "bg-green-100 text-green-700",
+      medium: "bg-blue-100 text-blue-700",
+      hard: "bg-red-100 text-red-700",
     };
     return colors[type as keyof typeof colors] || colors.medium;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        Loading your dashboard...
+      </div>
+    );
+  }
+
   if (!user) return null;
+
+  const subscription = user.subscription;
+  const interviewsRemaining = user.interviewsRemaining;
+  const userName = user.name || "User";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -97,7 +160,7 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">Welcome, {user.name}</span>
+            <span className="text-sm text-gray-600">Welcome, {userName}</span>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
@@ -132,29 +195,43 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Your Interview History</CardTitle>
-                <CardDescription>Review your past performance and track your progress</CardDescription>
+                <CardDescription>
+                  Review your past performance and track your progress
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {interviews.length === 0 ? (
                   <div className="text-center py-12">
                     <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">No interviews yet</p>
-                    <Button onClick={handleStartInterview}>Start Your First Interview</Button>
+                    <Button onClick={handleStartInterview}>
+                      Start Your First Interview
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {interviews.map((interview) => (
-                      <Card key={interview.id} className="hover:shadow-md transition-shadow">
+                      <Card
+                        key={interview.id}
+                        className="hover:shadow-md transition-shadow"
+                      >
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold text-lg">{interview.jobTitle}</h3>
-                                <Badge className={getDifficultyColor(interview.avatarType)}>
+                                <h3 className="font-semibold text-lg">
+                                  {interview.jobTitle}
+                                </h3>
+                                <Badge
+                                  className={getDifficultyColor(interview.avatarType)}
+                                >
                                   {interview.avatarType}
                                 </Badge>
-                                <Badge variant="outline">{interview.language.toUpperCase()}</Badge>
+                                <Badge variant="outline">
+                                  {interview.language.toUpperCase()}
+                                </Badge>
                               </div>
+
                               <div className="flex items-center gap-4 text-sm text-gray-600">
                                 <span className="flex items-center gap-1">
                                   <Calendar className="w-4 h-4" />
@@ -166,29 +243,52 @@ export default function Dashboard() {
                                 </span>
                               </div>
                             </div>
-                            {interview.status === 'completed' && (
+
+                            {interview.status === "completed" && (
                               <div className="text-right">
-                                <div className="text-3xl font-bold text-blue-600">{interview.score}%</div>
-                                <p className="text-xs text-gray-500">Overall Score</p>
+                                <div className="text-3xl font-bold text-blue-600">
+                                  {interview.score}%
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  Overall Score
+                                </p>
                               </div>
                             )}
                           </div>
-                          {interview.status === 'completed' && (
+
+                          {interview.status === "completed" && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="mt-4 w-full"
-                              onClick={() => {
-                                (async () => {
-                                  const reports = await interviewService.getReportsByUser(user!.id);
-                                  const report = reports.find((r) => r.interviewId === interview.id);
-                                  if (report) {
+                              onClick={async () => {
+                                try {
+                                  const reports =
+                                    await interviewService.getReportsByUser(user.id);
+                                  const report = reports.find(
+                                    (r) => r.interviewId === interview.id
+                                  );
+
+                                  if (!report) {
                                     toast({
-                                      title: 'Interview Report',
-                                      description: `Score: ${report.overallScore}% | Strengths: ${report.strengths.length} | Areas to improve: ${report.weaknesses.length}`,
+                                      title: "No report found",
+                                      description: "This interview has no report yet.",
                                     });
+                                    return;
                                   }
-                                })();
+
+                                  toast({
+                                    title: `Your Score: ${report.overallScore}%`,
+                                    description: `Communication: ${report.communication}% | Confidence: ${report.confidence}% | Technical: ${report.technical}%`,
+                                  });
+                                } catch (err) {
+                                  console.error(err);
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to load report",
+                                    variant: "destructive",
+                                  });
+                                }
                               }}
                             >
                               <TrendingUp className="w-4 h-4 mr-2" />
@@ -210,26 +310,36 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {user.subscription === 'premium' && <Crown className="w-5 h-5 text-yellow-500" />}
-                  {user.subscription === 'premium' ? 'Premium Plan' : 'Free Plan'}
+                  {subscription === "premium" && (
+                    <Crown className="w-5 h-5 text-yellow-500" />
+                  )}
+                  {subscription === "premium" ? "Premium Plan" : "Free Plan"}
                 </CardTitle>
                 <CardDescription>
-                  {user.subscription === 'premium'
-                    ? 'Unlimited interviews and full AI reports'
-                    : 'Limited to 2 interviews'}
+                  {subscription === "premium"
+                    ? "Unlimited interviews and full AI reports"
+                    : "Limited to 2 interviews"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {user.subscription === 'free' ? (
+                {subscription === "free" ? (
                   <>
                     <div className="mb-4">
                       <div className="flex justify-between text-sm mb-2">
                         <span>Interviews Remaining</span>
-                        <span className="font-semibold">{user.interviewsRemaining} / 2</span>
+                        <span className="font-semibold">
+                          {interviewsRemaining} / 2
+                        </span>
                       </div>
-                      <Progress value={(user.interviewsRemaining / 2) * 100} className="h-2" />
+                      <Progress
+                        value={(interviewsRemaining / 2) * 100}
+                        className="h-2"
+                      />
                     </div>
-                    <Button className="w-full" onClick={() => navigate('/pricing')}>
+                    <Button
+                      className="w-full"
+                      onClick={() => navigate("/pricing")}
+                    >
                       <Crown className="w-4 h-4 mr-2" />
                       Upgrade to Premium
                     </Button>
@@ -238,7 +348,9 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-green-600">
                       <Crown className="w-5 h-5" />
-                      <span className="font-semibold">Unlimited Interviews</span>
+                      <span className="font-semibold">
+                        Unlimited Interviews
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600">
                       You have full access to all features including unlimited interviews and detailed AI reports.
@@ -254,32 +366,33 @@ export default function Dashboard() {
                 <CardTitle>Your Statistics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Total Interviews</span>
-                    <span className="font-semibold">{interviews.length}</span>
-                  </div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">
+                    Total Interviews
+                  </span>
+                  <span className="font-semibold">{interviews.length}</span>
                 </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Average Score</span>
-                    <span className="font-semibold">
-                      {interviews.length > 0
-                        ? Math.round(
-                            interviews.reduce((sum, i) => sum + i.score, 0) / interviews.length
-                          )
-                        : 0}
-                      %
-                    </span>
-                  </div>
+
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">
+                    Average Score
+                  </span>
+                  <span className="font-semibold">
+                    {interviews.length > 0
+                      ? Math.round(
+                          interviews.reduce((sum, i) => sum + i.score, 0) /
+                            interviews.length
+                        )
+                      : 0}
+                    %
+                  </span>
                 </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Completed</span>
-                    <span className="font-semibold">
-                      {interviews.filter((i) => i.status === 'completed').length}
-                    </span>
-                  </div>
+
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">Completed</span>
+                  <span className="font-semibold">
+                    {interviews.filter((i) => i.status === "completed").length}
+                  </span>
                 </div>
               </CardContent>
             </Card>
