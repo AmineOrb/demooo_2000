@@ -1,3 +1,4 @@
+// src/lib/authService.ts
 import { supabase } from "@/lib/supabase";
 
 export type SubscriptionType = "free" | "premium";
@@ -11,74 +12,52 @@ export interface UserProfile {
   emailVerified: boolean;
 }
 
-async function ensureProfile(userId: string, name: string, email: string) {
-  // Check if profile exists
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", userId)
-    .single();
-
-  // If profile exists → return it
-  if (data) return data;
-
-  // Create profile if missing
-  const { data: newProfile, error: insertError } = await supabase
-    .from("users")
-    .insert({
-      id: userId,
-      name,
-      email,
-      subscription: "free",
-      interviews_remaining: 2,
-    })
-    .select()
-    .single();
-
-  if (insertError) throw insertError;
-  return newProfile;
-}
-
 export const authService = {
-  // -----------------------------
-  // Email + Password Sign Up
-  // -----------------------------
+  // Sign up with email + password
   async signUp(email: string, password: string, name: string): Promise<UserProfile> {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+      },
     });
 
     if (error) throw error;
-    if (!data.user) throw new Error("No user returned from signUp");
+    if (!data.user) throw new Error("No user returned");
 
-    // Create profile
-    const profile = await ensureProfile(data.user.id, name, email);
+    // create profile row
+    const { error: profileError } = await supabase.from("users").insert({
+      id: data.user.id,
+      name,
+      email,
+      subscription: "free",
+      interviews_remaining: 2,
+    });
+
+    if (profileError) throw profileError;
 
     return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      subscription: profile.subscription,
-      interviewsRemaining: profile.interviews_remaining,
+      id: data.user.id,
+      name,
+      email,
+      subscription: "free",
+      interviewsRemaining: 2,
       emailVerified: !!data.user.email_confirmed_at,
     };
   },
 
-  // -----------------------------
-  // Email + Password Sign In
-  // -----------------------------
+  // Sign in with email + password
   async signIn(email: string, password: string): Promise<UserProfile> {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
 
+    if (error) throw error;
     if (!data.user) throw new Error("No user returned");
 
-    // Block until email verified
+    // If you want to *enforce* email verification, keep this
     if (!data.user.email_confirmed_at) {
       throw new Error("EMAIL_NOT_VERIFIED");
     }
@@ -86,9 +65,7 @@ export const authService = {
     return await this.getCurrentUser();
   },
 
-  // -----------------------------
-  // Google OAuth Login
-  // -----------------------------
+  // Google sign-in
   async signInWithGoogle(): Promise<void> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -99,28 +76,24 @@ export const authService = {
     if (error) throw error;
   },
 
-  // -----------------------------
-  // Logout
-  // -----------------------------
+  // Sign out
   async signOut(): Promise<void> {
     await supabase.auth.signOut();
   },
 
-  // -----------------------------
-  // Get Current User + Profile
-  // -----------------------------
+  // Get current user profile (or throw if not logged in)
   async getCurrentUser(): Promise<UserProfile> {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData.session?.user;
-
     if (!user) throw new Error("Not authenticated");
 
-    // Ensure profile exists (handles Google first-time login)
-    const profile = await ensureProfile(
-      user.id,
-      user.user_metadata?.name || "",
-      user.email || ""
-    );
+    const { data: profile, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !profile) throw error ?? new Error("Profile not found");
 
     return {
       id: profile.id,
@@ -132,9 +105,17 @@ export const authService = {
     };
   },
 
-  // -----------------------------
-  // Subscription upgrade
-  // -----------------------------
+  // 📧 NEW: resend verification email
+  async resendVerificationEmail(email: string): Promise<void> {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+
+    if (error) throw error;
+  },
+
+  // Update subscription (free / premium)
   async updateSubscription(subscription: SubscriptionType) {
     const profile = await this.getCurrentUser();
 
@@ -149,20 +130,15 @@ export const authService = {
     if (error) throw error;
   },
 
-  // -----------------------------
-  // Use one free interview
-  // -----------------------------
+  // Decrement remaining interviews for free users after a completed interview
   async decrementFreeInterview() {
     const profile = await this.getCurrentUser();
-
     if (profile.subscription !== "free") return;
     if (profile.interviewsRemaining <= 0) return;
 
     const { error } = await supabase
       .from("users")
-      .update({
-        interviews_remaining: profile.interviewsRemaining - 1,
-      })
+      .update({ interviews_remaining: profile.interviewsRemaining - 1 })
       .eq("id", profile.id);
 
     if (error) throw error;

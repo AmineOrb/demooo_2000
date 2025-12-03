@@ -1,40 +1,52 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { authService } from '@/lib/api';
-import { Video, Mail, CheckCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// src/pages/EmailVerificationPending.tsx
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { authService } from "@/lib/authService";
+import { Video, Mail, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function EmailVerificationPending() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isResending, setIsResending] = useState(false);
-  const pendingUser = authService.getPendingUser();
+
+  // ✅ email is passed in the URL: /email-verification?email=you@example.com
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email");
 
   const handleResendEmail = async () => {
-    if (!pendingUser) return;
-    
+    if (!email) return;
+
     setIsResending(true);
     try {
-      await authService.resendVerificationEmail(pendingUser.email);
+      await authService.resendVerificationEmail(email);
       toast({
-        title: 'Verification email sent',
-        description: 'Please check your inbox and spam folder',
+        title: "Verification email sent",
+        description: "Please check your inbox and spam folder",
       });
     } catch (error) {
+      console.error(error);
       toast({
-        title: 'Error',
-        description: 'Failed to resend verification email',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to resend verification email",
+        variant: "destructive",
       });
     } finally {
       setIsResending(false);
     }
   };
 
-  if (!pendingUser) {
-    navigate('/auth');
+  // If there's no email in the URL, go back to auth
+  if (!email) {
+    navigate("/auth");
     return null;
   }
 
@@ -64,26 +76,27 @@ export default function EmailVerificationPending() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center">
-              <p className="font-semibold text-lg">{pendingUser.email}</p>
+              <p className="font-semibold text-lg">{email}</p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-700">
-                  Click the verification link in your email to activate your account
+                  Click the verification link in your email to activate your
+                  account.
                 </p>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-700">
-                  Check your spam folder if you don't see the email
+                  Check your spam folder if you don't see the email.
                 </p>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-700">
-                  The link will expire in 24 hours
+                  The link may take a couple of minutes to arrive.
                 </p>
               </div>
             </div>
@@ -95,22 +108,15 @@ export default function EmailVerificationPending() {
                 variant="outline"
                 className="w-full"
               >
-                {isResending ? 'Sending...' : 'Resend Verification Email'}
+                {isResending ? "Sending..." : "Resend Verification Email"}
               </Button>
 
-              <Button variant="ghost" className="w-full" onClick={() => navigate('/auth')}>
-                Back to Sign In
-              </Button>
-            </div>
-
-            <div className="text-center text-sm text-gray-600">
-              <p>For demo purposes, use this verification link:</p>
               <Button
-                variant="link"
-                className="text-blue-600"
-                onClick={() => navigate(`/verify-email?token=${pendingUser.verificationToken}`)}
+                variant="ghost"
+                className="w-full"
+                onClick={() => navigate("/auth")}
               >
-                Click here to verify
+                Back to Sign In
               </Button>
             </div>
           </CardContent>
