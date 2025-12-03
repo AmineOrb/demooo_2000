@@ -1,44 +1,100 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { authService } from '@/lib/api';
-import { Video, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// src/pages/VerifyEmail.tsx
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Video, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+// If you have @supabase/supabase-js types installed, you can import this type:
+import type { EmailOtpType } from "@supabase/supabase-js";
+
+type Status = "verifying" | "success" | "error";
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
+
+  const [status, setStatus] = useState<Status>("verifying");
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    if (!token) {
-      setStatus('error');
-      return;
-    }
+    // Supabase confirmation links normally send:
+    //   ?token_hash=...&type=email
+    const tokenHash = searchParams.get("token_hash");
+    const typeParam = searchParams.get("type") as EmailOtpType | null;
 
-    verifyToken(token);
+    // Old demo-style links might just send ?token=...
+    const legacyToken = searchParams.get("token");
+
+    if (tokenHash && typeParam) {
+      // Real Supabase flow
+      verifySupabaseTokenHash(tokenHash, typeParam);
+    } else if (legacyToken) {
+      // Fallback: treat legacy token as an email OTP (demo only)
+      verifySupabaseLegacyToken(legacyToken);
+    } else {
+      setStatus("error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const verifyToken = async (token: string) => {
+  const verifySupabaseTokenHash = async (tokenHash: string, type: EmailOtpType) => {
     try {
-      const success = await authService.verifyEmail(token);
-      if (success) {
-        setStatus('success');
-        toast({
-          title: 'Email verified!',
-          description: 'Your account has been activated successfully',
-        });
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000);
-      } else {
-        setStatus('error');
+      const { error } = await supabase.auth.verifyOtp({
+        type,
+        token_hash: tokenHash,
+      });
+
+      if (error) {
+        console.error("verifyOtp error:", error);
+        setStatus("error");
+        return;
       }
-    } catch (error) {
-      setStatus('error');
+
+      setStatus("success");
+      toast({
+        title: "Email verified!",
+        description: "Your account has been activated successfully.",
+      });
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
+    }
+  };
+
+  // Optional fallback if you ever send raw OTP codes instead of token_hash links
+  const verifySupabaseLegacyToken = async (token: string) => {
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        type: "email",
+        token,
+        // You would also pass `email` here if you use OTP codes sent as {{ .Token }}
+        // email,
+      } as any);
+
+      if (error) {
+        console.error("verifyOtp (legacy) error:", error);
+        setStatus("error");
+        return;
+      }
+
+      setStatus("success");
+      toast({
+        title: "Email verified!",
+        description: "Your account has been activated successfully.",
+      });
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
     }
   };
 
@@ -59,7 +115,7 @@ export default function VerifyEmail() {
             <CardTitle className="text-center">Email Verification</CardTitle>
           </CardHeader>
           <CardContent className="text-center py-8">
-            {status === 'verifying' && (
+            {status === "verifying" && (
               <div className="space-y-4">
                 <Loader2 className="w-16 h-16 text-blue-600 mx-auto animate-spin" />
                 <p className="text-lg font-medium">Verifying your email...</p>
@@ -67,22 +123,24 @@ export default function VerifyEmail() {
               </div>
             )}
 
-            {status === 'success' && (
+            {status === "success" && (
               <div className="space-y-4">
                 <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
-                <p className="text-lg font-medium text-green-600">Email Verified Successfully!</p>
+                <p className="text-lg font-medium text-green-600">
+                  Email Verified Successfully!
+                </p>
                 <p className="text-sm text-gray-600">Redirecting to dashboard...</p>
               </div>
             )}
 
-            {status === 'error' && (
+            {status === "error" && (
               <div className="space-y-4">
                 <XCircle className="w-16 h-16 text-red-600 mx-auto" />
                 <p className="text-lg font-medium text-red-600">Verification Failed</p>
                 <p className="text-sm text-gray-600">
-                  The verification link is invalid or has expired
+                  The verification link is invalid or has expired.
                 </p>
-                <Button onClick={() => navigate('/auth')} className="mt-4">
+                <Button onClick={() => navigate("/auth")} className="mt-4">
                   Back to Sign In
                 </Button>
               </div>
