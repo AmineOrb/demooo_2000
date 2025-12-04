@@ -135,9 +135,9 @@ export default function Auth() {
 
           <CardContent>
             {authError && (
-              <Alert className="mb-4 border-red-500 bg-red-50">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-800">
+              <Alert className="mb-4 border-red-500 bg-red-50 dark:bg-red-900 dark:border-red-700">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-300" />
+                <AlertDescription className="text-red-800 dark:text-red-200">
                   {authError}
                 </AlertDescription>
               </Alert>
@@ -252,7 +252,7 @@ export default function Auth() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-muted-foreground">
+                <span className="bg-background px-2 text-muted-foreground">
                   Or continue with
                 </span>
               </div>

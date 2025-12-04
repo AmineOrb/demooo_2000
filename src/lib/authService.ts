@@ -10,11 +10,17 @@ export interface UserProfile {
   subscription: SubscriptionType;
   interviewsRemaining: number;
   emailVerified: boolean;
+  streak: number;
+  lastPracticeDate: string | null; // "YYYY-MM-DD" or null
 }
 
 export const authService = {
   // Sign up with email + password
-  async signUp(email: string, password: string, name: string): Promise<UserProfile> {
+  async signUp(
+    email: string,
+    password: string,
+    name: string
+  ): Promise<UserProfile> {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -33,6 +39,8 @@ export const authService = {
       email,
       subscription: "free",
       interviews_remaining: 2,
+      streak: 0,
+      last_practice_date: null,
     });
 
     if (profileError) throw profileError;
@@ -44,6 +52,8 @@ export const authService = {
       subscription: "free",
       interviewsRemaining: 2,
       emailVerified: !!data.user.email_confirmed_at,
+      streak: 0,
+      lastPracticeDate: null,
     };
   },
 
@@ -81,7 +91,7 @@ export const authService = {
     await supabase.auth.signOut();
   },
 
-    // Get current user profile (or create it if missing)
+  // Get current user profile (or create it if missing)
   async getCurrentUser(): Promise<UserProfile> {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData.session?.user;
@@ -105,6 +115,8 @@ export const authService = {
         email: user.email as string,
         subscription: "free",
         interviews_remaining: 2,
+        streak: 0,
+        last_practice_date: null,
       };
 
       const { error: insertError } = await supabase
@@ -138,11 +150,12 @@ export const authService = {
       subscription: profile.subscription,
       interviewsRemaining: profile.interviews_remaining,
       emailVerified: !!sessionData.session?.user?.email_confirmed_at,
+      streak: profile.streak ?? 0,
+      lastPracticeDate: profile.last_practice_date ?? null,
     };
   },
 
-
-  // 📧 NEW: resend verification email
+  // 📧 resend verification email
   async resendVerificationEmail(email: string): Promise<void> {
     const { error } = await supabase.auth.resend({
       type: "signup",
@@ -179,5 +192,62 @@ export const authService = {
       .eq("id", profile.id);
 
     if (error) throw error;
+  },
+
+  // 🔥 NEW: update streak after a completed interview
+  async updateStreakAfterInterview(userId: string): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+    // 1) Get current streak + last_practice_date
+    const { data, error } = await supabase
+      .from("users")
+      .select("streak, last_practice_date")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      console.error("Failed to load streak data", error);
+      return;
+    }
+
+    const last = data.last_practice_date as string | null;
+    let newStreak = 1;
+
+    if (last === today) {
+      // Already practiced today → streak stays the same
+      newStreak = data.streak ?? 1;
+    } else if (last) {
+      // Check if last practice was yesterday
+      const lastDate = new Date(last);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const isYesterday =
+        lastDate.getFullYear() === yesterday.getFullYear() &&
+        lastDate.getMonth() === yesterday.getMonth() &&
+        lastDate.getDate() === yesterday.getDate();
+
+      if (isYesterday) {
+        newStreak = (data.streak ?? 0) + 1;
+      } else {
+        newStreak = 1; // streak reset
+      }
+    } else {
+      // No last date → first ever practice
+      newStreak = 1;
+    }
+
+    // 2) Update in DB
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        streak: newStreak,
+        last_practice_date: today,
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      console.error("Failed to update streak", updateError);
+    }
   },
 };

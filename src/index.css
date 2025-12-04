@@ -33,4 +33,27 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Dark mode variables (activated by adding the `dark` class to <html>) */
+  .dark {
+    --background: 220 13% 18%;
+    --foreground: 210 16% 98%;
+    --card: 222.2 47.4% 11.2%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 47.4% 11.2%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 13% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 220 13% 18%;
+    --muted-foreground: 215.4 16.3% 76.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 25%;
+    --input: 220 13% 25%;
+    --ring: 210 40% 98%;
+  }
 }

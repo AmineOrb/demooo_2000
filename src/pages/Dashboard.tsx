@@ -26,6 +26,9 @@ import { useToast } from "@/hooks/use-toast";
 import { authService, type UserProfile } from "@/lib/authService";
 import { interviewService, type Interview } from "@/lib/interviewService";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -33,6 +36,9 @@ export default function Dashboard() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
+
+
+  
 
   // Load current user + interviews (Supabase)
   useEffect(() => {
@@ -147,25 +153,33 @@ export default function Dashboard() {
   const subscription = user.subscription;
   const interviewsRemaining = user.interviewsRemaining;
   const userName = user.name || "User";
+  const streak = user.streak ?? 0;
+
+
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background text-foreground">
+
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+  <header className="border-b border-border bg-card backdrop-blur-sm sticky top-0 z-50">
+
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Video className="w-8 h-8 text-blue-600" />
+            <Video className="w-8 h-8 text-blue-600 dark:text-primary-foreground" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               AI Interview Simulator
             </h1>
           </div>
+          
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">Welcome, {userName}</span>
+            <span className="text-sm text-muted-foreground">Welcome, {userName}</span>
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+                Sign Out
             </Button>
           </div>
+
         </div>
       </header>
 
@@ -393,7 +407,25 @@ export default function Dashboard() {
                   <span className="font-semibold">
                     {interviews.filter((i) => i.status === "completed").length}
                   </span>
+                </div> 
+
+
+
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">Current Streak</span>
+                  <span className="font-semibold">
+                    {streak} {streak === 1 ? "" : "🔥"} 🔥
+                  </span>
                 </div>
+
+    
+
+                
+
+
+
+
+
               </CardContent>
             </Card>
 
