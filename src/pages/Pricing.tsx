@@ -128,12 +128,12 @@ export default function Pricing() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border bg-card backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Video className="w-8 h-8 text-blue-600" />
+            <Video className="w-8 h-8 text-blue-600 dark:text-primary-foreground" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               AI Interview Simulator
             </h1>
@@ -158,7 +158,7 @@ export default function Pricing() {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Choose Your Plan
           </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Start with our free plan or upgrade to Premium for unlimited access
           </p>
 
@@ -212,7 +212,7 @@ export default function Pricing() {
                 </CardDescription>
                 <div className="mt-6">
                   <span className="text-5xl font-bold">{plan.price}</span>
-                  <span className="text-gray-500 text-lg">{plan.period}</span>
+                  <span className="text-muted-foreground text-lg">{plan.period}</span>
                   {plan.savings && (
                     <div className="mt-2">
                       <Badge
@@ -292,7 +292,7 @@ export default function Pricing() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Yes! You can cancel your Premium subscription at any time.
                   You'll continue to have access until the end of your billing
                   period.
@@ -307,7 +307,7 @@ export default function Pricing() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   We accept all major credit cards through Stripe, including
                   Visa, Mastercard, and American Express.
                 </p>
@@ -319,7 +319,7 @@ export default function Pricing() {
                 <CardTitle className="text-lg">Is there a free trial?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Yes! Our Free plan gives you 2 complete interview sessions
                   with AI analysis, so you can try the platform before
                   upgrading.
@@ -331,8 +331,8 @@ export default function Pricing() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t bg-gray-50 py-8 mt-16">
-        <div className="container mx-auto px-4 text-center text-gray-600">
+      <footer className="border-t bg-background py-8 mt-16">
+        <div className="container mx-auto px-4 text-center text-muted-foreground">
           <p>© 2025 AI Interview Simulator. All rights reserved.</p>
           <p className="mt-2 text-sm">Secure payments powered by Stripe</p>
         </div>

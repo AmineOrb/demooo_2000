@@ -111,16 +111,16 @@ export default function Auth() {
   //   UI
   // ----------------------------
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Video className="w-10 h-10 text-blue-600" />
+            <Video className="w-10 h-10 text-blue-600 dark:text-primary-foreground" />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               AI Interview Simulator
             </h1>
           </div>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Practice interviews and improve your skills
           </p>
         </div>
@@ -277,7 +277,7 @@ export default function Auth() {
         </Card>
 
         <div className="text-center mt-6">
-          <Button variant="link" onClick={() => navigate("/")}>
+          <Button variant="link" className="dark:text-white" onClick={() => navigate("/") }>
             ← Back to Home
           </Button>
         </div>
