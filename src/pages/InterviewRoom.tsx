@@ -253,10 +253,10 @@ export default function InterviewRoom() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-background text-foreground">
 
       {/* HEADER */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+  <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="text-white border-white">
@@ -297,9 +297,9 @@ export default function InterviewRoom() {
         </div>
 
         {/* VIDEO GRID */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
           {/* USER CAMERA */}
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
                 <video
@@ -322,7 +322,7 @@ export default function InterviewRoom() {
           </Card>
 
           {/* AI AVATAR */}
-          <Card className="bg-gray-800 border-gray-700">
+          <Card className="bg-card border-border">
             <CardContent className="p-4">
               <div className="relative aspect-video rounded-lg overflow-hidden">
                 <AvatarViewer

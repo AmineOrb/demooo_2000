@@ -33,6 +33,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function InterviewSetup() {
   const navigate = useNavigate();
@@ -162,26 +163,29 @@ export default function InterviewSetup() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border bg-card backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Video className="w-8 h-8 text-blue-600" />
+            <Video className="w-8 h-8 text-blue-600 dark:text-primary-foreground" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               AI Interview Simulator
             </h1>
           </div>
-          <Button variant="ghost" onClick={() => navigate("/dashboard")}>
-            ← Back to Dashboard
-          </Button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+              ← Back to Dashboard
+            </Button>
+          </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold mb-2">Setup Your Interview</h2>
-          <p className="text-gray-600">Customize your interview experience</p>
+          <p className="text-muted-foreground">Customize your interview experience</p>
         </div>
 
         <div className="space-y-6">
@@ -197,7 +201,7 @@ export default function InterviewSetup() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
                 <Input
                   type="file"
                   accept=".pdf,.doc,.docx"
@@ -206,17 +210,17 @@ export default function InterviewSetup() {
                   id="cv-upload"
                 />
                 <Label htmlFor="cv-upload" className="cursor-pointer">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   {formData.cvFile ? (
                     <p className="text-sm font-medium text-blue-600">
                       {formData.cvFile.name}
                     </p>
                   ) : (
                     <>
-                      <p className="text-sm font-medium mb-1">
+                      <p className="text-sm font-medium mb-1 text-muted-foreground">
                         Click to upload or drag and drop
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         PDF, DOC, or DOCX (Max 10MB)
                       </p>
                     </>
@@ -297,15 +301,15 @@ export default function InterviewSetup() {
                     />
                     <Label
                       htmlFor={option.type}
-                      className={`flex flex-col items-center justify-between rounded-lg border-2 ${option.color} bg-white p-6 hover:bg-gray-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all`}
+                      className={`flex flex-col items-center justify-between rounded-lg border-2 ${option.color} bg-white dark:bg-card p-6 hover:bg-gray-50 dark:hover:bg-gray-800 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 dark:peer-data-[state=checked]:bg-blue-900 cursor-pointer transition-all`}
                     >
                       <div className="text-5xl mb-3">{option.icon}</div>
                       <div className="text-center">
                         <p className="font-semibold mb-1">{option.title}</p>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm text-muted-foreground mb-2">
                           {option.description}
                         </p>
-                        <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
                           {option.duration}
                         </div>
