@@ -81,29 +81,66 @@ export const authService = {
     await supabase.auth.signOut();
   },
 
-  // Get current user profile (or throw if not logged in)
+    // Get current user profile (or create it if missing)
   async getCurrentUser(): Promise<UserProfile> {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData.session?.user;
     if (!user) throw new Error("Not authenticated");
 
-    const { data: profile, error } = await supabase
+    // 1) Try to load existing profile
+    let { data: profile, error } = await supabase
       .from("users")
       .select("*")
       .eq("id", user.id)
       .single();
 
-    if (error || !profile) throw error ?? new Error("Profile not found");
+    // 2) If no profile yet, create one (this happens for Google users)
+    if (error || !profile) {
+      const defaultProfile = {
+        id: user.id,
+        name:
+          (user.user_metadata as any)?.name ||
+          (user.user_metadata as any)?.full_name ||
+          (user.email?.split("@")[0] ?? "User"),
+        email: user.email as string,
+        subscription: "free",
+        interviews_remaining: 2,
+      };
 
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert(defaultProfile);
+
+      if (insertError) {
+        console.error("Failed to create profile", insertError);
+        throw insertError;
+      }
+
+      // refetch the profile to be sure
+      const { data: newProfile, error: fetchError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (fetchError || !newProfile) {
+        throw fetchError ?? new Error("Profile not found after creation");
+      }
+
+      profile = newProfile;
+    }
+
+    // 3) Return in the format the rest of the app expects
     return {
       id: profile.id,
       name: profile.name,
       email: profile.email,
       subscription: profile.subscription,
       interviewsRemaining: profile.interviews_remaining,
-      emailVerified: !!user.email_confirmed_at,
+      emailVerified: !!sessionData.session?.user?.email_confirmed_at,
     };
   },
+
 
   // 📧 NEW: resend verification email
   async resendVerificationEmail(email: string): Promise<void> {
