@@ -73,34 +73,37 @@ export default function Index() {
       </section>
 
       {/* How It Works */}
-      <section className="container mx-auto px-4 py-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-3xl my-16">
-        <h3 className="text-3xl font-bold text-center mb-12">How It Works</h3>
-        <div className="grid md:grid-cols-4 gap-8">
-          {[
-            { step: '1', title: 'Upload Your CV', desc: 'Share your resume and job details' },
-            { step: '2', title: 'Choose Avatar', desc: 'Select difficulty level and language' },
-            { step: '3', title: 'Practice Interview', desc: 'Answer questions in real-time' },
-            { step: '4', title: 'Get Feedback', desc: 'Receive detailed AI analysis' },
-          ].map((item) => (
-            <div key={item.step} className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                {item.step}
-              </div>
-              <h4 className="font-semibold text-lg mb-2">{item.title}</h4>
-              <p className="text-gray-600">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+<section
+  className="container mx-auto px-4 py-16 rounded-3xl my-16
+             bg-gradient-to-r from-blue-50 to-purple-50
+             dark:from-slate-900 dark:to-slate-900"
+>
+  <h3 className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-gray-100">
+    How It Works
+  </h3>
 
-      {/* Language Support */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <Globe className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-        <h3 className="text-3xl font-bold mb-4">Multi-Language Support</h3>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Practice interviews in English or Arabic with AI avatars that adapt to your language preference
+  <div className="grid md:grid-cols-4 gap-8">
+    {[
+      { step: "1", title: "Upload Your CV", desc: "Share your resume and job details" },
+      { step: "2", title: "Choose Avatar", desc: "Select difficulty level and language" },
+      { step: "3", title: "Practice Interview", desc: "Answer questions in real-time" },
+      { step: "4", title: "Get Feedback", desc: "Receive detailed AI analysis" },
+    ].map((item) => (
+      <div key={item.step} className="text-center">
+        <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg">
+          {item.step}
+        </div>
+        <h4 className="font-semibold text-lg mb-2 text-gray-900 dark:text-gray-100">
+          {item.title}
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300">
+          {item.desc}
         </p>
-      </section>
+      </div>
+    ))}
+  </div>
+</section>
+
 
       {/* Benefits */}
       <section className="container mx-auto px-4 py-16">
@@ -140,12 +143,15 @@ export default function Index() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-gray-50 py-8">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>© 2025 AI Interview Simulator. All rights reserved.</p>
-          <p className="mt-2 text-sm">Practice makes perfect. Start your journey today.</p>
-        </div>
-      </footer>
+      <footer className="border-t bg-gray-50 dark:bg-slate-950 py-8 mt-16">
+  <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-400">
+    <p>© 2025 AI Interview Simulator. All rights reserved.</p>
+    <p className="mt-2 text-sm">
+      Practice makes perfect. Start your journey today.
+    </p>
+  </div>
+</footer>
+
     </div>
   );
 }
