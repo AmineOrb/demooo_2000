@@ -430,17 +430,20 @@ export default function Dashboard() {
             </Card>
 
             {/* Tips Card */}
-            <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardHeader>
-                <CardTitle className="text-lg">💡 Quick Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p>• Practice regularly to build confidence</p>
-                <p>• Review your reports after each session</p>
-                <p>• Try different difficulty levels</p>
-                <p>• Focus on your weak areas</p>
-              </CardContent>
-            </Card>
+            <Card className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+  <CardHeader>
+    <CardTitle className="text-lg text-gray-900 dark:text-gray-100">
+      💡 Quick Tips
+    </CardTitle>
+  </CardHeader>
+  <CardContent className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+    <p>• Practice regularly to build confidence</p>
+    <p>• Review your reports after each session</p>
+    <p>• Try different difficulty levels</p>
+    <p>• Focus on your weak areas</p>
+  </CardContent>
+</Card>
+
           </div>
         </div>
       </div>
