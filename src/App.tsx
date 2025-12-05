@@ -13,6 +13,8 @@ import Pricing from '@/pages/Pricing';
 import VerifyEmail from '@/pages/VerifyEmail';
 import EmailVerificationPending from '@/pages/EmailVerificationPending';
 import NotFound from '@/pages/NotFound';
+import { ThemeToggle } from "@/components/ThemeToggle";
+
 
 // --- Navbar Component ---
 const Navbar = () => {
@@ -20,30 +22,33 @@ const Navbar = () => {
 
   return (
     <header className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
+  <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <div
+      className="flex items-center gap-2 cursor-pointer"
+      onClick={() => navigate("/")}
+    >
+      <Video className="w-8 h-8 text-blue-600" />
+      <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        AI Interview Simulator
+      </h1>
+    </div>
 
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <div
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          <Video className="w-8 h-8 text-blue-600" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            AI Interview Simulator
-          </h1>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => navigate('/auth')}>
-            Sign In
-          </Button>
-          <Button
-            onClick={() => navigate('/auth')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600"
-          >
-            Get Started
-          </Button>
-        </div>
-      </div>
-    </header>
+    {/* RIGHT SIDE OF HEADER */}
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+      <Button variant="ghost" onClick={() => navigate("/auth")}>
+        Sign In
+      </Button>
+      <Button
+        onClick={() => navigate("/auth")}
+        className="bg-gradient-to-r from-blue-600 to-purple-600"
+      >
+        Get Started
+      </Button>
+    </div>
+  </div>
+</header>
+
   );
 };
 
