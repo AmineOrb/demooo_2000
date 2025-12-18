@@ -251,3 +251,10 @@ export const authService = {
     }
   },
 };
+
+// 
+export function getSubscriptionTypeFromProfile(
+  profile: Pick<UserProfile, "subscription"> | null | undefined
+): SubscriptionType {
+  return profile?.subscription === "premium" ? "premium" : "free";
+}
