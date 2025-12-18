@@ -21,22 +21,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import { authService, type UserProfile } from "@/lib/authService";
 import { interviewService } from "@/lib/interviewService";
-
-import {
-  Upload,
-  Video,
-  ArrowRight,
-  User,
-  Briefcase,
-  Clock,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCapabilities } from "@/lib/planRules";
 
-
+import { Upload, Video, ArrowRight, User, Briefcase, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function InterviewSetup() {
   const navigate = useNavigate();
@@ -44,6 +44,9 @@ export default function InterviewSetup() {
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [checkingUser, setCheckingUser] = useState(true);
+
+  const [realisticMode, setRealisticMode] = useState(false);
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     cvFile: null as File | null,
@@ -86,6 +89,17 @@ export default function InterviewSetup() {
     }
   };
 
+  const handleToggleRealisticMode = (checked: boolean) => {
+    if (!user) return;
+
+    if (user.subscription !== "premium") {
+      setShowPremiumDialog(true);
+      return;
+    }
+
+    setRealisticMode(checked);
+  };
+
   const handleStartInterview = async () => {
     if (!user) {
       navigate("/auth");
@@ -117,6 +131,7 @@ export default function InterviewSetup() {
         jobDescription: formData.jobDescription,
         avatarType: formData.avatarType,
         language: formData.language,
+        // NOTE: we are NOT sending realisticMode yet (next step will)
       });
 
       toast({
@@ -165,10 +180,8 @@ export default function InterviewSetup() {
   if (checkingUser) return null;
   if (!user) return null;
 
-
   const capabilities = getCapabilities(user.subscription);
   console.log("Plan capabilities:", capabilities);
-
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -193,7 +206,9 @@ export default function InterviewSetup() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold mb-2">Setup Your Interview</h2>
-          <p className="text-muted-foreground">Customize your interview experience</p>
+          <p className="text-muted-foreground">
+            Customize your interview experience
+          </p>
         </div>
 
         <div className="space-y-6">
@@ -270,7 +285,10 @@ export default function InterviewSetup() {
                   rows={6}
                   value={formData.jobDescription}
                   onChange={(e) =>
-                    setFormData({ ...formData, jobDescription: e.target.value })
+                    setFormData({
+                      ...formData,
+                      jobDescription: e.target.value,
+                    })
                   }
                   required
                 />
@@ -355,6 +373,30 @@ export default function InterviewSetup() {
             </CardContent>
           </Card>
 
+          {/* Interview Mode (Premium gated) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Interview Mode</CardTitle>
+              <CardDescription>
+                Choose how close the interview feels to a real one.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Realistic mode</p>
+                <p className="text-sm text-muted-foreground">
+                  Stronger follow-up pressure, stricter evaluation, and more realistic pacing.
+                </p>
+
+                {user.subscription !== "premium" && (
+                  <p className="text-sm text-blue-600 mt-2">Premium feature</p>
+                )}
+              </div>
+
+              <Switch checked={realisticMode} onCheckedChange={handleToggleRealisticMode} />
+            </CardContent>
+          </Card>
+
           {/* Start Button */}
           <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
             <CardContent className="p-6">
@@ -378,6 +420,26 @@ export default function InterviewSetup() {
           </Card>
         </div>
       </div>
+
+      {/* Premium Feature Dialog */}
+      <Dialog open={showPremiumDialog} onOpenChange={setShowPremiumDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Premium Feature</DialogTitle>
+            <DialogDescription>
+              Realistic mode is available on Premium. Upgrade to unlock a more realistic interview
+              experience with stronger follow-ups and deeper scoring.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setShowPremiumDialog(false)}>
+              Not now
+            </Button>
+            <Button onClick={() => navigate("/pricing")}>Upgrade to Premium</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
