@@ -414,7 +414,7 @@ export default function Dashboard() {
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-gray-600">Current Streak</span>
                   <span className="font-semibold">
-                    {streak} {streak === 1 ? "" : "🔥"} 🔥
+                    {streak} {streak === 1 ? "" : "🔥"} 
                   </span>
                 </div>
 
