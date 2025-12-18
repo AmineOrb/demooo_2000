@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getCapabilities } from "@/lib/planRules";
 
 
 
@@ -163,6 +164,11 @@ export default function InterviewSetup() {
 
   if (checkingUser) return null;
   if (!user) return null;
+
+
+  const capabilities = getCapabilities(user.subscription);
+  console.log("Plan capabilities:", capabilities);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
