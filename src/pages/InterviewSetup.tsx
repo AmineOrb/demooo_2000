@@ -39,12 +39,14 @@ import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/context/LanguageContext";
-
+import { t } from "@/lib/i18n";
 
 export default function InterviewSetup() {
-  const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // ✅ Only one useLanguage call
+  const { lang, setLang } = useLanguage();
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [checkingUser, setCheckingUser] = useState(true);
@@ -58,7 +60,6 @@ export default function InterviewSetup() {
     jobDescription: "",
     avatarType: "medium" as "easy" | "medium" | "hard",
     language: "en" as "en" | "ar" | "fr" | "es",
-
   });
 
   // Load logged-in user from Supabase
@@ -137,7 +138,10 @@ export default function InterviewSetup() {
         avatarType: formData.avatarType,
         language: formData.language,
 
-        // NOTE: we are NOT sending realisticMode yet (next step will)
+
+
+
+       realisticMode,
       });
 
       toast({
@@ -204,18 +208,16 @@ export default function InterviewSetup() {
             <ThemeToggle />
             <LanguageToggle value={lang} onChange={setLang} />
             <Button variant="ghost" onClick={() => navigate("/dashboard")}>
-              ← Back to Dashboard
+              {t[lang].backToDashboard}
             </Button>
-          </div>  
+          </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-2">Setup Your Interview</h2>
-          <p className="text-muted-foreground">
-            Customize your interview experience
-          </p>
+          <h2 className="text-3xl font-bold mb-2">{t[lang].setupTitle}</h2>
+          <p className="text-muted-foreground">{t[lang].setupSubtitle}</p>
         </div>
 
         <div className="space-y-6">
@@ -292,10 +294,7 @@ export default function InterviewSetup() {
                   rows={6}
                   value={formData.jobDescription}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      jobDescription: e.target.value,
-                    })
+                    setFormData({ ...formData, jobDescription: e.target.value })
                   }
                   required
                 />
@@ -354,7 +353,7 @@ export default function InterviewSetup() {
             </CardContent>
           </Card>
 
-          {/* Language Selection */}
+          {/* Language Selection (Free includes all 4 now) */}
           <Card>
             <CardHeader>
               <CardTitle>Interview Language</CardTitle>
@@ -366,7 +365,10 @@ export default function InterviewSetup() {
               <Select
                 value={formData.language}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, language: value as "en" | "ar" | "fr" | "es" })
+                  setFormData({
+                    ...formData,
+                    language: value as "en" | "ar" | "fr" | "es",
+                  })
                 }
               >
                 <SelectTrigger>
@@ -402,7 +404,10 @@ export default function InterviewSetup() {
                 )}
               </div>
 
-              <Switch checked={realisticMode} onCheckedChange={handleToggleRealisticMode} />
+              <Switch
+                checked={realisticMode}
+                onCheckedChange={handleToggleRealisticMode}
+              />
             </CardContent>
           </Card>
 
@@ -442,7 +447,10 @@ export default function InterviewSetup() {
           </DialogHeader>
 
           <div className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setShowPremiumDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowPremiumDialog(false)}
+            >
               Not now
             </Button>
             <Button onClick={() => navigate("/pricing")}>Upgrade to Premium</Button>
