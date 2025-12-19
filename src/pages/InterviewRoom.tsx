@@ -14,9 +14,12 @@ type AvatarType = "easy" | "medium" | "hard";
 type LanguageType = "en" | "ar";
 
 // -----------------------------------------------------
-//     LOCAL QUESTION GENERATOR
+// QUESTIONS (UNCHANGED)
 // -----------------------------------------------------
-const getInterviewQuestions = (avatarType: AvatarType, language: LanguageType): string[] => {
+const getInterviewQuestions = (
+  avatarType: AvatarType,
+  language: LanguageType
+): string[] => {
   const questions = {
     easy: {
       en: [
@@ -72,7 +75,7 @@ const getInterviewQuestions = (avatarType: AvatarType, language: LanguageType): 
 };
 
 // -----------------------------------------------------
-//     LOCAL DURATION MAP
+// DURATION MAP (UNCHANGED)
 // -----------------------------------------------------
 const getAvatarDuration = (avatarType: AvatarType): number => {
   const durations: Record<AvatarType, number> = {
@@ -99,8 +102,15 @@ export default function InterviewRoom() {
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
   const [questions, setQuestions] = useState<string[]>([]);
 
+  // 🔥 CHAT + TRANSCRIPT
+  const [messages, setMessages] = useState<
+    { role: "ai" | "user"; text: string }[]
+  >([]);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
+
   // -----------------------------------------------------
-  // LOAD INTERVIEW FROM SUPABASE BY ID
+  // LOAD INTERVIEW
   // -----------------------------------------------------
   useEffect(() => {
     if (!roomId) return;
@@ -119,30 +129,29 @@ export default function InterviewRoom() {
   }, [roomId, navigate, toast]);
 
   // -----------------------------------------------------
-  // INIT INTERVIEW AFTER LOADING
+  // INIT INTERVIEW
   // -----------------------------------------------------
   useEffect(() => {
     if (!interview) return;
 
     const qs = getInterviewQuestions(interview.avatarType, interview.language);
     setQuestions(qs);
+    setTimeRemaining(getAvatarDuration(interview.avatarType));
 
-    const duration = getAvatarDuration(interview.avatarType);
-    setTimeRemaining(duration);
+    setMessages([{ role: "ai", text: qs[0] }]);
 
     startCamera();
-
-    setTimeout(() => startQuestion(), 1500);
+    startListening();
+    startQuestion();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
+      stopListening();
+      stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [interview]); // eslint-disable-line
+  }, [interview]);
 
   // -----------------------------------------------------
-  // COUNTDOWN TIMER
+  // TIMER
   // -----------------------------------------------------
   useEffect(() => {
     if (timeRemaining <= 0) return;
@@ -160,6 +169,9 @@ export default function InterviewRoom() {
     return () => clearInterval(interval);
   }, [timeRemaining]);
 
+  // -----------------------------------------------------
+  // CAMERA
+  // -----------------------------------------------------
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -168,9 +180,7 @@ export default function InterviewRoom() {
       });
 
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = mediaStream;
     } catch {
       toast({
         title: "Camera blocked",
@@ -180,63 +190,91 @@ export default function InterviewRoom() {
     }
   };
 
-  const startQuestion = () => {
-    setIsAvatarSpeaking(true);
-    const speakDuration = Math.random() * 2000 + 3000;
-    setTimeout(() => setIsAvatarSpeaking(false), speakDuration);
+  // -----------------------------------------------------
+  // SPEECH TO TEXT (FREE)
+  // -----------------------------------------------------
+  const startListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setLiveTranscript("Live transcript not supported.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = interview.language;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      let text = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        text += event.results[i][0].transcript;
+      }
+      setLiveTranscript(text);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
   };
 
-  const handleNextQuestion = () => {
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+  };
+
+  // -----------------------------------------------------
+  // QUESTION FLOW
+  // -----------------------------------------------------
+  const startQuestion = () => {
+    setIsAvatarSpeaking(true);
+    setTimeout(() => setIsAvatarSpeaking(false), 3000);
+  };
+
+  const handleFinishAnswer = () => {
+    stopListening();
+
+    if (liveTranscript.trim()) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: liveTranscript },
+      ]);
+    }
+
+    setLiveTranscript("");
+
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+
+      const nextQ = questions[nextIndex];
+      setMessages((prev) => [...prev, { role: "ai", text: nextQ }]);
+
+      startListening();
       startQuestion();
     } else {
       handleEndInterview();
     }
   };
 
-  const toggleVideo = () => {
-    if (stream) {
-      const track = stream.getVideoTracks()[0];
-      track.enabled = !track.enabled;
-      setIsVideoOn(track.enabled);
-    }
-  };
-
-  const toggleAudio = () => {
-    if (stream) {
-      const track = stream.getAudioTracks()[0];
-      track.enabled = !track.enabled;
-      setIsAudioOn(track.enabled);
-    }
-  };
-
   // -----------------------------------------------------
-  // FINISH INTERVIEW
+  // END
   // -----------------------------------------------------
   const handleEndInterview = async () => {
     if (!interview) return;
 
-    try {
-      const totalDuration = getAvatarDuration(interview.avatarType);
-      const actualDuration = totalDuration - timeRemaining;
+    await interviewService.completeInterview(
+      interview.id,
+      getAvatarDuration(interview.avatarType) - timeRemaining
+    );
 
-      await interviewService.completeInterview(interview.id, actualDuration);
+    toast({
+      title: "Interview Complete 🎉",
+      description: "Your AI performance report is ready.",
+    });
 
-      toast({
-        title: "Interview Complete 🎉",
-        description: "Your AI performance report is ready.",
-      });
-
-      navigate("/dashboard");
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to complete interview.",
-        variant: "destructive",
-      });
-    }
+    navigate("/dashboard");
   };
 
   const formatTime = (s: number) => {
@@ -254,16 +292,17 @@ export default function InterviewRoom() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       {/* HEADER */}
-  <div className="bg-card border-b border-border px-6 py-4">
+      <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="text-white border-white">
               {interview.language.toUpperCase()}
             </Badge>
             <Badge className="bg-blue-600">{interview.avatarType}</Badge>
-            <span className="text-sm text-gray-400">{interview.jobTitle}</span>
+            <span className="text-sm text-gray-400">
+              {interview.jobTitle}
+            </span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -284,7 +323,6 @@ export default function InterviewRoom() {
 
       {/* MAIN */}
       <div className="container mx-auto px-4 py-6">
-
         {/* Progress */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
@@ -297,7 +335,7 @@ export default function InterviewRoom() {
         </div>
 
         {/* VIDEO GRID */}
-          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid lg:grid-cols-2 gap-6 mb-6">
           {/* USER CAMERA */}
           <Card className="bg-card border-border">
             <CardContent className="p-4">
@@ -329,79 +367,80 @@ export default function InterviewRoom() {
                   avatarType={interview.avatarType}
                   isActive={isAvatarSpeaking}
                 />
-
                 <div className="absolute bottom-4 left-4">
                   <Badge className="bg-black/50 backdrop-blur">
                     AI Interviewer
                   </Badge>
                 </div>
-
-                {isAvatarSpeaking && (
-                  <div className="absolute top-4 right-4">
-                    <Badge className="bg-red-500 animate-pulse">
-                      Speaking…
-                    </Badge>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* QUESTION */}
+        {/* CHAT (REPLACES CURRENT QUESTION) */}
         <Card className="bg-gradient-to-r from-blue-900 to-purple-900 border-blue-700">
-          <CardContent className="p-8">
-            <h3 className="text-sm text-blue-300 mb-2">Current Question:</h3>
-            <p className="text-2xl font-medium mb-6">
-              {questions[currentQuestionIndex]}
-            </p>
-
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-300">
-                {isAvatarSpeaking
-                  ? "AI is asking..."
-                  : "Your turn to answer. Take your time."}
-              </p>
-
-              <Button
-                onClick={handleNextQuestion}
-                disabled={isAvatarSpeaking}
-                className="bg-white text-blue-900 hover:bg-blue-50"
+          <CardContent className="p-6 space-y-4 max-h-[400px] overflow-y-auto">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`max-w-[80%] p-3 rounded-lg text-sm ${
+                  m.role === "ai"
+                    ? "bg-white/20 text-white self-start"
+                    : "bg-blue-600 text-white self-end ml-auto"
+                }`}
               >
-                {currentQuestionIndex < questions.length - 1
-                  ? "Next Question"
-                  : "Finish Interview"}
+                {m.text}
+              </div>
+            ))}
+
+            {/* LIVE TRANSCRIPT */}
+            {liveTranscript && (
+              <div className="max-w-[80%] p-3 rounded-lg text-sm bg-blue-500 text-white self-end ml-auto opacity-80">
+                {liveTranscript}
+              </div>
+            )}
+
+            <div className="pt-4">
+              <Button
+                onClick={handleFinishAnswer}
+                className="bg-white text-blue-900 hover:bg-blue-50 w-full"
+              >
+                I’ve finished answering
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Controls */}
+        {/* CONTROLS */}
         <div className="flex justify-center gap-4 mt-6">
           <Button
             size="lg"
             variant={isVideoOn ? "secondary" : "destructive"}
-            onClick={toggleVideo}
+            onClick={() => {
+              if (stream) {
+                const track = stream.getVideoTracks()[0];
+                track.enabled = !track.enabled;
+                setIsVideoOn(track.enabled);
+              }
+            }}
             className="w-16 h-16 rounded-full"
           >
-            {isVideoOn ? (
-              <Video className="w-6 h-6" />
-            ) : (
-              <VideoOff className="w-6 h-6" />
-            )}
+            {isVideoOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
           </Button>
 
           <Button
             size="lg"
             variant={isAudioOn ? "secondary" : "destructive"}
-            onClick={toggleAudio}
+            onClick={() => {
+              if (stream) {
+                const track = stream.getAudioTracks()[0];
+                track.enabled = !track.enabled;
+                setIsAudioOn(track.enabled);
+              }
+            }}
             className="w-16 h-16 rounded-full"
           >
-            {isAudioOn ? (
-              <Mic className="w-6 h-6" />
-            ) : (
-              <MicOff className="w-6 h-6" />
-            )}
+            {isAudioOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
           </Button>
         </div>
       </div>
