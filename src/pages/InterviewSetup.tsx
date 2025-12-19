@@ -37,8 +37,12 @@ import { getCapabilities } from "@/lib/planRules";
 import { Upload, Video, ArrowRight, User, Briefcase, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/context/LanguageContext";
+
 
 export default function InterviewSetup() {
+  const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -53,7 +57,8 @@ export default function InterviewSetup() {
     jobTitle: "",
     jobDescription: "",
     avatarType: "medium" as "easy" | "medium" | "hard",
-    language: "en" as "en" | "ar",
+    language: "en" as "en" | "ar" | "fr" | "es",
+
   });
 
   // Load logged-in user from Supabase
@@ -131,6 +136,7 @@ export default function InterviewSetup() {
         jobDescription: formData.jobDescription,
         avatarType: formData.avatarType,
         language: formData.language,
+
         // NOTE: we are NOT sending realisticMode yet (next step will)
       });
 
@@ -196,10 +202,11 @@ export default function InterviewSetup() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            <LanguageToggle value={lang} onChange={setLang} />
             <Button variant="ghost" onClick={() => navigate("/dashboard")}>
               ← Back to Dashboard
             </Button>
-          </div>
+          </div>  
         </div>
       </header>
 
@@ -359,7 +366,7 @@ export default function InterviewSetup() {
               <Select
                 value={formData.language}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, language: value as "en" | "ar" })
+                  setFormData({ ...formData, language: value as "en" | "ar" | "fr" | "es" })
                 }
               >
                 <SelectTrigger>
@@ -368,6 +375,8 @@ export default function InterviewSetup() {
                 <SelectContent>
                   <SelectItem value="en">🇬🇧 English</SelectItem>
                   <SelectItem value="ar">🇸🇦 Arabic (العربية)</SelectItem>
+                  <SelectItem value="fr">🇫🇷 French (Français)</SelectItem>
+                  <SelectItem value="es">🇪🇸 Spanish (Español)</SelectItem>
                 </SelectContent>
               </Select>
             </CardContent>
