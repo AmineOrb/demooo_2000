@@ -7,7 +7,7 @@ export interface Interview {
   jobTitle: string;
   jobDescription: string;
   avatarType: "easy" | "medium" | "hard";
-  language: "en" | "ar";
+  language: "en" | "ar" | "fr" | "es";
   date: string;
   duration: number;
   score: number;
@@ -26,6 +26,17 @@ export interface InterviewReport {
   suggestions: string[];
 }
 
+export type TurnRole = "ai" | "user";
+
+export interface InterviewTurn {
+  id: string;
+  interviewId: string;
+  userId: string;
+  role: TurnRole;
+  text: string;
+  createdAt: string;
+}
+
 export const interviewService = {
   // ----------------------------------------------------
   // CREATE INTERVIEW
@@ -34,7 +45,7 @@ export const interviewService = {
     jobTitle: string;
     jobDescription: string;
     avatarType: "easy" | "medium" | "hard";
-    language: "en" | "ar";
+    language: "en" | "ar" | "fr" | "es";
   }): Promise<Interview> {
     const user = await authService.getCurrentUser();
 
@@ -60,7 +71,7 @@ export const interviewService = {
 
     if (error || !created) throw error ?? new Error("Interview not created");
 
-    return {
+    const interview: Interview = {
       id: created.id,
       userId: created.user_id,
       jobTitle: created.job_title,
@@ -72,10 +83,62 @@ export const interviewService = {
       score: created.score,
       status: created.status,
     };
+
+    // ✅ Store first AI turn (placeholder for now; later replaced by AI generation)
+    const firstQuestion =
+      data.language === "ar"
+        ? "أخبرني عن نفسك."
+        : data.language === "fr"
+        ? "Parlez-moi de vous."
+        : data.language === "es"
+        ? "Háblame de ti."
+        : "Tell me about yourself.";
+
+    await this.addTurn(interview.id, "ai", firstQuestion);
+
+    return interview;
   },
 
   // ----------------------------------------------------
-  // COMPLETE INTERVIEW + GENERATE REPORT
+  // TURNS: ADD ONE TURN
+  // ----------------------------------------------------
+  async addTurn(interviewId: string, role: TurnRole, text: string): Promise<void> {
+    const user = await authService.getCurrentUser();
+
+    const { error } = await supabase.from("interview_turns").insert({
+      interview_id: interviewId,
+      user_id: user.id,
+      role,
+      text,
+    });
+
+    if (error) throw error;
+  },
+
+  // ----------------------------------------------------
+  // TURNS: GET ALL TURNS FOR AN INTERVIEW
+  // ----------------------------------------------------
+  async getTurnsByInterview(interviewId: string): Promise<InterviewTurn[]> {
+    const { data, error } = await supabase
+      .from("interview_turns")
+      .select("*")
+      .eq("interview_id", interviewId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    return (data ?? []).map((t: any) => ({
+      id: t.id,
+      interviewId: t.interview_id,
+      userId: t.user_id,
+      role: t.role as TurnRole,
+      text: t.text,
+      createdAt: t.created_at,
+    }));
+  },
+
+  // ----------------------------------------------------
+  // COMPLETE INTERVIEW + GENERATE REPORT (mock for now)
   // ----------------------------------------------------
   async completeInterview(interviewId: string, duration: number): Promise<InterviewReport> {
     const user = await authService.getCurrentUser();
@@ -134,7 +197,7 @@ export const interviewService = {
 
     if (error) throw error;
 
-    return (data ?? []).map((i) => ({
+    return (data ?? []).map((i: any) => ({
       id: i.id,
       userId: i.user_id,
       jobTitle: i.job_title,
@@ -159,7 +222,7 @@ export const interviewService = {
 
     if (error) throw error;
 
-    return (data ?? []).map((r) => ({
+    return (data ?? []).map((r: any) => ({
       interviewId: r.interview_id,
       overallScore: r.overall_score,
       communication: r.communication,
@@ -198,4 +261,3 @@ export const interviewService = {
     };
   },
 };
-
