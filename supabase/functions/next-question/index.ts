@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
     // We count follow-ups used based on AI questions stored so far that look like follow-ups.
     // Simple heuristic for now: if an AI question contains "you said" / "you mentioned" / "can you elaborate"
-    // OR ends with "?" after a short user answer.
+    // OR ends with "?" after a short user answer..
     // We'll improve later, but this is enough to enforce the "2 follow-ups" experience.
     const aiQuestions = turns.filter((t) => t.role === "ai").map((t) => t.text.toLowerCase());
     const followUpsUsed = aiQuestions.filter((q) =>
