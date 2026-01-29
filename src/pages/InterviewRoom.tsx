@@ -219,17 +219,20 @@ const resetSilenceTimer = () => {
 
   // -------------------- AUTO FLOW --------------------
   const beginUserTurn = useCallback(() => {
-    if (!interview) return;
+  if (!interview) return;
 
-    setPhase("USER_SPEAKING");
-    processingAnswerRef.current = false;
+  setPhase("USER_SPEAKING");
+  processingAnswerRef.current = false;
 
-    setLiveTranscript("");
-    startListening(interview.language);
+  // Reset the transcript buffer for this answer
+  finalAnswerRef.current = "";
+  setLiveTranscript("");
 
-    // Start the silence detector / recorder
-    recorder.start();
-  }, [interview, recorder, startListening]);
+  startListening(interview.language);
+
+  // IMPORTANT: do NOT use recorder in Phase 1 (we use SpeechRecognition + silence timer)
+}, [interview, startListening]);
+
 
   const beginAiTurn = useCallback(() => {
     setPhase("AI_SPEAKING");
