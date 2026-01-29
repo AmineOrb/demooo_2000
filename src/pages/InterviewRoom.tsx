@@ -328,7 +328,8 @@ const resetSilenceTimer = () => {
     stopListening();
     await recorder.stop().catch(() => undefined);
 
-    const answer = liveTranscript.trim();
+    const answer = (finalAnswerRef.current || liveTranscript).trim();
+
     setLiveTranscript("");
 
     if (answer) {
@@ -370,12 +371,20 @@ const resetSilenceTimer = () => {
     beginAiTurn,
   ]);
 
-  // 🔥 This is the magic: when the recorder auto-stops (silence detected), we auto-finish the answer.
+  //
   useEffect(() => {
-    if (!recorder.lastResult) return;
+  finishAnswerRef.current = () => {
+    // only finish when user is speaking
     if (phase !== "USER_SPEAKING") return;
+
+    // if user said nothing, don't advance immediately (optional)
+    const combined = (finalAnswerRef.current || liveTranscript).trim();
+    if (!combined) return;
+
     handleFinishAnswer();
-  }, [recorder.lastResult, phase, handleFinishAnswer]);
+  };
+}, [handleFinishAnswer, liveTranscript, phase]);
+
 
   const toggleVideo = () => {
     if (stream) {
