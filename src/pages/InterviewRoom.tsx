@@ -73,6 +73,33 @@ export default function InterviewRoom() {
   const [liveTranscript, setLiveTranscript] = useState("");
   const recognitionRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const finalAnswerRef = useRef("");            // stores the committed transcript
+  const silenceTimerRef = useRef<number | null>(null); // for auto-finish
+  const finishAnswerRef = useRef<() => void>(() => {}); // safe callback for events
+
+  // helper functions to control silence timer
+
+  const clearSilenceTimer = () => {
+  if (silenceTimerRef.current) {
+    window.clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = null;
+  }
+};
+
+const resetSilenceTimer = () => {
+  clearSilenceTimer();
+  silenceTimerRef.current = window.setTimeout(() => {
+    // If user pauses for ~1.7s, we auto-finish the answer
+    finishAnswerRef.current?.();
+  }, 1700);
+};
+
+
+
+
+
+
+
 
   // Silence auto-stop (hands-free)
   const recorder = useSilenceRecorder(stream, {
@@ -117,32 +144,68 @@ export default function InterviewRoom() {
 
   // -------------------- FREE STT (Web Speech API) --------------------
   const startListening = useCallback((lang: LanguageType) => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setLiveTranscript("Live transcript not supported in this browser.");
-      return;
-    }
+  const SpeechRecognition =
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = lang;
-    recognition.continuous = true;
-    recognition.interimResults = true;
+  if (!SpeechRecognition) {
+    setLiveTranscript("Live transcript not supported in this browser.");
+    return;
+  }
 
-    recognition.onresult = (event: any) => {
-      let text = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
+  // reset buffers for a new user answer
+  finalAnswerRef.current = "";
+  setLiveTranscript("");
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = lang;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (event: any) => {
+    let interim = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const txt = event.results[i][0].transcript ?? "";
+      if (event.results[i].isFinal) {
+        finalAnswerRef.current += txt + " ";
+      } else {
+        interim += txt;
       }
-      setLiveTranscript(text);
-    };
-
-    try {
-      recognition.start();
-      recognitionRef.current = recognition;
-    } catch {
-      // ignore repeated start errors
     }
-  }, []);
+
+    // show both final + interim
+    const combined = (finalAnswerRef.current + interim).trim();
+    setLiveTranscript(combined);
+
+    // each time user speaks/updates, reset silence timer
+    resetSilenceTimer();
+  };
+
+  recognition.onerror = () => {
+    // if recognition fails, don't crash
+  };
+
+  recognition.onend = () => {
+    // Sometimes SpeechRecognition ends by itself.
+    // If we're still in user speaking phase, auto-finish.
+    resetSilenceTimer();
+  };
+
+  try {
+    recognition.start();
+    recognitionRef.current = recognition;
+    resetSilenceTimer(); // start timer even if user is quiet
+  } catch {
+    // ignore repeated start errors
+  }
+}, []);
+
+
+
+
+
+
+
 
   const stopListening = useCallback(() => {
     try {
