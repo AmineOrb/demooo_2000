@@ -206,14 +206,16 @@ const resetSilenceTimer = () => {
 
 
 
-
+// stop listening
   const stopListening = useCallback(() => {
-    try {
-      recognitionRef.current?.stop();
-    } catch {
-      // ignore
-    }
-  }, []);
+  clearSilenceTimer();
+  try {
+    recognitionRef.current?.stop();
+  } catch {
+    // ignore
+  }
+}, []);
+
 
   // -------------------- AUTO FLOW --------------------
   const beginUserTurn = useCallback(() => {
