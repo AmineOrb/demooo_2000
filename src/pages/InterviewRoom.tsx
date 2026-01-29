@@ -86,17 +86,15 @@ export default function InterviewRoom() {
   }
 };
 
+// time to go to next question
+
 const resetSilenceTimer = () => {
   clearSilenceTimer();
   silenceTimerRef.current = window.setTimeout(() => {
     // If user pauses for ~1.7s, we auto-finish the answer
     finishAnswerRef.current?.();
-  }, 1700);
+  }, 2500);
 };
-
-
-
-
 
 
 
@@ -142,6 +140,7 @@ const resetSilenceTimer = () => {
     }
   }, [toast]);
 
+  
   // -------------------- FREE STT (Web Speech API) --------------------
   const startListening = useCallback((lang: LanguageType) => {
   const SpeechRecognition =
@@ -243,7 +242,7 @@ const resetSilenceTimer = () => {
 
     // Stop any recording/listening while AI is speaking
     stopListening();
-    recorder.stop().catch(() => undefined);
+    // recorder.stop().catch(() => undefined);
 
     setTimeout(() => {
       setIsAvatarSpeaking(false);
@@ -292,7 +291,8 @@ const resetSilenceTimer = () => {
       try {
         recorder.stop().catch(() => undefined);
       } catch {}
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stopMedia();
+
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview, roomId]);
@@ -344,7 +344,7 @@ const resetSilenceTimer = () => {
       setMessages((prev) => [...prev, { role: "user", text: answer }]);
     }
 
-    // Move to next question
+    // Move to the next question
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex < questions.length) {
       const nextQ = questions[nextIndex];
@@ -411,6 +411,8 @@ const resetSilenceTimer = () => {
 
     setPhase("ENDED");
     stopListening();
+    stopMedia();
+
     try {
       await recorder.stop().catch(() => undefined);
     } catch {}
@@ -436,6 +438,22 @@ const resetSilenceTimer = () => {
       });
     }
   };
+
+
+// helper to stop camera and mic after interview ends
+  const stopMedia = useCallback(() => {
+  if (stream) {
+    stream.getTracks().forEach((t) => t.stop());
+  }
+  setStream(null);
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+  }
+}, [stream]);
+
+
+
+
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -545,10 +563,13 @@ const resetSilenceTimer = () => {
 
         {/* CHAT */}
         <Card className="bg-gradient-to-r from-blue-900 to-purple-900 border-blue-700">
-          <CardContent className="p-6">
+          <CardContent className="p-5 flex flex-col h-[38vh] min-h-[280px] max-h-[380px]">
+
+
             <h3 className="text-sm text-blue-300 mb-4">Interview Chat</h3>
 
-            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-2">
+
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "ai" ? "justify-start" : "justify-end"}`}>
                   <div
