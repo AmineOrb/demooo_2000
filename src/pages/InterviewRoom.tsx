@@ -628,5 +628,3 @@ const resetSilenceTimer = () => {
     </div>
   );
 }
-
-//
