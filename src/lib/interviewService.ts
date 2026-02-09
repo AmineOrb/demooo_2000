@@ -1,6 +1,12 @@
 import { supabase } from "@/lib/supabase";
 import { authService } from "@/lib/authService";
 
+/* ----------------------------------------------------
+   TYPES
+---------------------------------------------------- */
+
+export type InterviewStatus = "in-progress" | "completed" | "aborted";
+
 export interface Interview {
   id: string;
   userId: string;
@@ -11,7 +17,8 @@ export interface Interview {
   date: string;
   duration: number;
   score: number;
-  status: "completed" | "in-progress";
+  status: InterviewStatus;
+  cvText?: string;
 }
 
 export interface InterviewReport {
@@ -37,15 +44,20 @@ export interface InterviewTurn {
   createdAt: string;
 }
 
+/* ----------------------------------------------------
+   SERVICE
+---------------------------------------------------- */
+
 export const interviewService = {
-  // ----------------------------------------------------
-  // CREATE INTERVIEW
-  // ----------------------------------------------------
+  /* --------------------------------------------------
+     CREATE INTERVIEW
+  -------------------------------------------------- */
   async createInterview(data: {
     jobTitle: string;
     jobDescription: string;
     avatarType: "easy" | "medium" | "hard";
     language: "en" | "ar" | "fr" | "es";
+    cvText?: string;
   }): Promise<Interview> {
     const user = await authService.getCurrentUser();
 
@@ -61,6 +73,7 @@ export const interviewService = {
         job_description: data.jobDescription,
         avatar_type: data.avatarType,
         language: data.language,
+        cv_text: data.cvText ?? null,
         status: "in-progress",
         date: new Date().toISOString(),
         duration: 0,
@@ -69,7 +82,9 @@ export const interviewService = {
       .select()
       .single();
 
-    if (error || !created) throw error ?? new Error("Interview not created");
+    if (error || !created) {
+      throw error ?? new Error("INTERVIEW_CREATION_FAILED");
+    }
 
     const interview: Interview = {
       id: created.id,
@@ -82,9 +97,9 @@ export const interviewService = {
       duration: created.duration,
       score: created.score,
       status: created.status,
+      cvText: created.cv_text ?? undefined,
     };
 
-    // ✅ Store first AI turn (placeholder for now; later replaced by AI generation)
     const firstQuestion =
       data.language === "ar"
         ? "أخبرني عن نفسك."
@@ -99,10 +114,14 @@ export const interviewService = {
     return interview;
   },
 
-  // ----------------------------------------------------
-  // TURNS: ADD ONE TURN
-  // ----------------------------------------------------
-  async addTurn(interviewId: string, role: TurnRole, text: string): Promise<void> {
+  /* --------------------------------------------------
+     ADD INTERVIEW TURN
+  -------------------------------------------------- */
+  async addTurn(
+    interviewId: string,
+    role: TurnRole,
+    text: string
+  ): Promise<void> {
     const user = await authService.getCurrentUser();
 
     const { error } = await supabase.from("interview_turns").insert({
@@ -115,9 +134,9 @@ export const interviewService = {
     if (error) throw error;
   },
 
-  // ----------------------------------------------------
-  // TURNS: GET ALL TURNS FOR AN INTERVIEW
-  // ----------------------------------------------------
+  /* --------------------------------------------------
+     GET TURNS FOR INTERVIEW
+  -------------------------------------------------- */
   async getTurnsByInterview(interviewId: string): Promise<InterviewTurn[]> {
     const { data, error } = await supabase
       .from("interview_turns")
@@ -137,12 +156,35 @@ export const interviewService = {
     }));
   },
 
-  // ----------------------------------------------------
-  // COMPLETE INTERVIEW + GENERATE REPORT (mock for now)
-  // ----------------------------------------------------
-  async completeInterview(interviewId: string, duration: number): Promise<InterviewReport> {
+  /* --------------------------------------------------
+     COMPLETE INTERVIEW (SAFE)
+  -------------------------------------------------- */
+  async completeInterview(
+    interviewId: string,
+    duration: number
+  ): Promise<InterviewReport> {
     const user = await authService.getCurrentUser();
 
+    // 1️⃣ Fetch interview + ownership check
+    const { data: interview, error } = await supabase
+      .from("interviews")
+      .select("status, user_id")
+      .eq("id", interviewId)
+      .single();
+
+    if (error || !interview) {
+      throw new Error("INTERVIEW_NOT_FOUND");
+    }
+
+    if (interview.user_id !== user.id) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    if (interview.status === "completed") {
+      throw new Error("INTERVIEW_ALREADY_COMPLETED");
+    }
+
+    // 2️⃣ Generate mock report (replace later with AI)
     const report: InterviewReport = {
       interviewId,
       overallScore: Math.floor(Math.random() * 30 + 65),
@@ -155,6 +197,7 @@ export const interviewService = {
       suggestions: ["Use STAR method", "Prepare technical examples"],
     };
 
+    // 3️⃣ Update interview
     const { error: updateError } = await supabase
       .from("interviews")
       .update({
@@ -166,6 +209,7 @@ export const interviewService = {
 
     if (updateError) throw updateError;
 
+    // 4️⃣ Insert report
     const { error: reportError } = await supabase.from("reports").insert({
       interview_id: interviewId,
       user_id: user.id,
@@ -181,13 +225,15 @@ export const interviewService = {
 
     if (reportError) throw reportError;
 
+    // 5️⃣ Decrement free interview count
     await authService.decrementFreeInterview();
+
     return report;
   },
 
-  // ----------------------------------------------------
-  // GET ALL INTERVIEWS FOR USER
-  // ----------------------------------------------------
+  /* --------------------------------------------------
+     GET INTERVIEWS BY USER
+  -------------------------------------------------- */
   async getInterviewsByUser(uid: string): Promise<Interview[]> {
     const { data, error } = await supabase
       .from("interviews")
@@ -208,12 +254,13 @@ export const interviewService = {
       duration: i.duration,
       score: i.score,
       status: i.status,
+      cvText: i.cv_text ?? undefined,
     }));
   },
 
-  // ----------------------------------------------------
-  // GET REPORTS BY USER
-  // ----------------------------------------------------
+  /* --------------------------------------------------
+     GET REPORTS BY USER
+  -------------------------------------------------- */
   async getReportsByUser(uid: string): Promise<InterviewReport[]> {
     const { data, error } = await supabase
       .from("reports")
@@ -235,9 +282,9 @@ export const interviewService = {
     }));
   },
 
-  // ----------------------------------------------------
-  // GET INTERVIEW BY ID
-  // ----------------------------------------------------
+  /* --------------------------------------------------
+     GET INTERVIEW BY ID
+  -------------------------------------------------- */
   async getInterviewById(id: string): Promise<Interview | null> {
     const { data, error } = await supabase
       .from("interviews")
@@ -258,6 +305,7 @@ export const interviewService = {
       duration: data.duration,
       score: data.score,
       status: data.status,
+      cvText: data.cv_text ?? undefined,
     };
   },
 };
