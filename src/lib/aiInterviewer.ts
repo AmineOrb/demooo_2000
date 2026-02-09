@@ -1,40 +1,32 @@
-import OpenAI from "openai";
+// src/lib/aiInterviewer.ts
 
-const client = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-});
+import { supabase } from "./supabase";
 
-export async function generateNextQuestion(params: {
-  jobTitle: string;
-  jobDescription: string;
-  difficulty: "easy" | "medium" | "hard";
-  language: "en" | "ar" | "fr" | "es";
-  previousTurns: { role: "ai" | "user"; text: string }[];
-}) {
-  const systemPrompt = `
-You are a professional job interviewer.
-Ask ONE clear interview question at a time.
-Adjust difficulty: ${params.difficulty}.
-Language: ${params.language}.
-Do not explain.
-Do not give feedback.
-Only ask the next question.
-`;
+type Message = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
 
-  const messages = [
-    { role: "system", content: systemPrompt },
-    ...params.previousTurns.map((t) => ({
-      role: t.role === "ai" ? "assistant" : "user",
-      content: t.text,
-    })),
-  ];
-
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages,
-    temperature: 0.7,
-    max_tokens: 120,
+export async function askAIInterviewer(messages: Message[]) {
+  const { data, error } = await supabase.functions.invoke("ai-interviewer", {
+    body: { messages },
   });
 
-  return response.choices[0].message.content?.trim();
+  if (error) {
+    console.error("AI interviewer error:", error);
+    throw new Error("AI interviewer failed");
+  }
+
+  // ✅ SAFELY extract the AI message
+  const reply =
+    data?.choices?.[0]?.message?.content ??
+    data?.reply ??
+    null;
+
+  if (!reply) {
+    console.error("Unexpected AI response shape:", data);
+    throw new Error("AI response was empty");
+  }
+
+  return reply as string;
 }

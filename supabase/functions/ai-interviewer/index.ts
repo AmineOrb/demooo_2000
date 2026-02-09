@@ -1,57 +1,51 @@
-// supabase/functions/ai-interviewer/index.ts
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-import OpenAI from "openai";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { status: 405 }
-    );
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { prompt } = await req.json();
+    const { messages } = await req.json();
 
-    if (!prompt) {
-      return new Response(
-        JSON.stringify({ error: "Missing prompt" }),
-        { status: 400 }
-      );
-    }
-
-    const openai = new OpenAI({
-      apiKey: Deno.env.get("OPENAI_API_KEY")!,
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional job interviewer.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_tokens: 200,
-    });
-
-    return new Response(
-      JSON.stringify({
-        reply: completion.choices[0].message.content,
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages,
       }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    });
+
+    const data = await openaiRes.json();
+
+    return new Response(JSON.stringify(data), {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+    });
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: "AI error", details: String(error) }),
-      { status: 500 }
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      }
     );
   }
-}
-
+});

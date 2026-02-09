@@ -14,7 +14,9 @@ import { useLanguage } from "@/context/LanguageContext";
 
 
 
+import { askAIInterviewer } from "@/lib/aiInterviewer";
 
+import { useState } from "react";
 
 
 type Lang = "en" | "fr" | "es" | "ar";
@@ -280,7 +282,53 @@ export default function Index() {
 
 
 
+const [messages, setMessages] = useState<
+  { role: "system" | "user" | "assistant"; content: string }[]
+>([
+  {
+    role: "system",
+    content: "You are a professional job interviewer.",
+  },
+]);
 
+const [aiReply, setAiReply] = useState<string | null>(null);
+const [loading, setLoading] = useState(false);
+
+
+
+
+
+
+
+
+
+async function testAI() {
+  setLoading(true);
+
+  const updatedMessages = [
+    ...messages,
+    {
+      role: "user",
+      content: "Hello, I am ready for my interview.",
+    },
+  ];
+
+  try {
+    const reply = await askAIInterviewer(updatedMessages);
+
+    setMessages([
+      ...updatedMessages,
+      { role: "assistant", content: reply },
+    ]);
+
+    setAiReply(reply);
+  } catch (err) {
+    console.error(err);
+    alert("AI interview failed");
+  } finally {
+    setLoading(false);
+  }
+}
 
 
 
@@ -330,6 +378,39 @@ export default function Index() {
           >
             {copy.viewPricing}
           </Button>
+
+
+
+        
+
+        <button
+  onClick={testAI}
+  className="mt-4 px-4 py-2 bg-black text-white rounded"
+>
+  Test AI Interviewer
+</button>
+
+
+
+{loading && (
+  <p className="mt-4 text-gray-500">AI is thinking...</p>
+)}
+
+{aiReply && (
+  <Card className="mt-6 max-w-2xl mx-auto">
+    <CardContent className="p-6">
+      <p className="text-gray-800 dark:text-gray-100 whitespace-pre-line">
+        {aiReply}
+      </p>
+    </CardContent>
+  </Card>
+)}
+
+
+
+
+
+
         </div>
 
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
