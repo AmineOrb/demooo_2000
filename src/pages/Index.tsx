@@ -12,6 +12,11 @@ import { useNavigate } from "react-router-dom";
 import { Video, Brain, TrendingUp, CheckCircle, Sparkles } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
+
+
+
+
+
 type Lang = "en" | "fr" | "es" | "ar";
 
 const COPY: Record<
@@ -270,6 +275,22 @@ export default function Index() {
 
   // Optional: better RTL layout for Arabic
   const isRTL = lang === "ar";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div
